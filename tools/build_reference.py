@@ -1,6 +1,6 @@
 """Regenerate exact public catalogues from the same constants used by the engine."""
 from pathlib import Path
-import json,sys
+import json,sys,re
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from planet.engine import World,PRICES
 from planet.technology import TECHNOLOGIES as BASE_TECHS
@@ -67,6 +67,10 @@ ACTION_HELP={
 }
 
 def bundle(value):return ', '.join(f'{RESOURCE_NAMES.get(k,k)} {v:g}' for k,v in value.items()) or '—'
+def polish(text):
+    text=re.sub(r'([А-Яа-яЁё])(?=\d)',r'\1 ',text)
+    text=re.sub(r'(\d)(?=[А-Яа-яЁё])',r'\1 ',text)
+    return text.replace('Python3.12','Python 3.12').replace('pygame2.6.1','pygame 2.6.1').replace('эпохаII','эпоха II').replace('эпохаI','эпоха I').replace('эпохиII','эпохи II').replace('эпохиI','эпохи I').replace('ЭПОХАII','ЭПОХА II')
 def table(headers,rows):
     safe=lambda v:str(v).replace('|',' / ').replace('\n','<br>')
     return '\n'.join(['| '+' | '.join(headers)+' |','| '+' | '.join('---' for _ in headers)+' |']+['| '+' | '.join(map(safe,row))+' |' for row in rows])+'\n'
@@ -92,6 +96,8 @@ def generate():
     (docs/'CATALOGS.md').write_text('\n'.join(out),encoding='utf-8')
     types={k:type(v).__name__ for k,v in DEFAULTS.items()}
     (docs/'CONFIGURATION.md').write_text('# Все параметры конфигурации\n\nРабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки7.0; они не взяты с компьютера автора.\n\n'+table(['Ключ','Тип','По умолчанию'],[(k,types[k],json.dumps(v,ensure_ascii=False)) for k,v in DEFAULTS.items()])+'\n## Связь лимитов\n\n`context_window` — общее запрошенное окно; `input_tokens` — желаемый бюджет фактов; `max_tokens` — верхний предел ответа. Вместе с системными инструкциями и техническим запасом они должны поместиться в подтверждённое окно модели. Игра может уменьшить резерв ответа или использовать больше целевого входа, чтобы сохранить текущие данные. Это не обещание выделить неподдерживаемую память.\n\n## Режимы\n\n`strict_state_isolation=true` требует нативного LM Studio API: выгрузка и загрузка чистого экземпляра между владельцами. `manage_model_context` управляет загрузкой вне строгого режима. Для стороннего OpenAI-совместимого сервера без этих методов оба параметра выключают; такой режим не обеспечивает серверную проверку выгрузки. `local_execution` и `local_chronicle` оставляют подготовку приказов и главы локальными. Отключение возвращает дополнительные запросы. `external_console` открывает отдельную консоль только в Windows. `response_max_bytes` ограничивает принимаемый ответ, а не контекст. Остальные архивные лимиты задают максимум истории, передаваемой в запрос, а не срок хранения сохранения.\n',encoding='utf-8')
+    for name in ('ACTIONS.md','CATALOGS.md','CONFIGURATION.md'):
+        path=docs/name;path.write_text(polish(path.read_text(encoding='utf-8')),encoding='utf-8')
     return dict(actions=len(PRICES),resources=len(RESOURCE_NAMES),base_technologies=len(BASE_TECHS),modern_technologies=len(TECHNOLOGIES),modern_buildings=len(BUILDINGS),modern_units=len(UNITS))
 
 if __name__=='__main__':print(json.dumps(generate()))
