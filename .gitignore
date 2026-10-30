@@ -1,0 +1,23 @@
+# Local runtime and credentials
+config.json
+.env
+.env.*
+saves/
+data/
+logs/
+work/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.sqlite*
+*.db
+*.jsonl
+*.log
+*.lock
+*.tmp
+build/
+dist/
+*.zip
+.DS_Store
+Thumbs.db
