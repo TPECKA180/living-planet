@@ -7,8 +7,8 @@ from .execution_ai import preview_orders
 from .isolation import checked_context
 from .learning import decision_signature
 
-def prepare_locally(world,state,decision,config):
-    context=checked_context(state,world.context(state,config),decision)
+def prepare_locally(world,state,decision,config,own_context=None):
+    context=checked_context(state,own_context if own_context is not None else world.context(state,config),decision)
     result=copy.deepcopy(decision);issues=[];fixes=[]
     def issue(kind,message):issues.append(dict(type=kind,success=False,message=message))
     for key in ('notes','plan'):
@@ -21,6 +21,9 @@ def prepare_locally(world,state,decision,config):
     actions=result['actions']
     if len(actions)>12:
         issue('action_limit',f'Превышен лимит12: дополнительные {len(actions)-12} приказов не поставлены в очередь');actions=actions[:12];result['actions']=actions
+    from .operation_support import append_explicit_orders
+    append_explicit_orders(result,issues,fixes)
+    result=normalize_decision(result,context);actions=result['actions']
     review=result.get('construction_review')
     if isinstance(review,dict) and review.get('choice')=='build':
         project_id=review.get('project_id')

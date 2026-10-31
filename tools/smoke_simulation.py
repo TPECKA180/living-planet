@@ -67,8 +67,9 @@ def campaign(mode='normal',days=20,modern=False):
         built=sum(c.building is not None for c in runner.world.cells)
         report=dict(mode=mode,epoch=2 if modern else 1,days=runner.world.day,phase=runner.world.phase,
             decisions=len(runner.world.decisions),messages=len(runner.world.messages),units=len(runner.world.units),buildings=built,
-            movement_records=len(runner.world.movement_log),chapters=runner.world.chapter,live_llm_calls=0,sqlite_roundtrip=True,invariants=True,
+            history_pages=len(runner.world.history_book),movement_records=len(runner.world.movement_log),chapters=runner.world.chapter,live_llm_calls=0,sqlite_roundtrip=True,invariants=True,
             accepted=dict(accepted),rejected=dict(rejected))
+        assert report['history_pages']==days//10
         assert report['decisions']==days*2 and report['messages']>=days*2
         return report
 

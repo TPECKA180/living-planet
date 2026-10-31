@@ -13,6 +13,8 @@ def render(destination=None):
     with tempfile.TemporaryDirectory() as folder:
         config=copy.deepcopy(DEFAULTS);config['external_console']=False
         view=App(World(size=64,count=4,seed=2026),Store(Path(folder)/'preview.sqlite3'),config)
+        from planet.world_history import write_history
+        view.world.day=10;write_history(view.world);view.chronicle_tab=2
         view.tab=9;view.zoom=1.2;view.status='Новый демонстрационный мир · подключите модель в F2 и начните свою историю'
         view.draw();pg.image.save(view.screen,str(destination));view.close()
     return destination

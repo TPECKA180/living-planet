@@ -1,6 +1,6 @@
 # Все параметры конфигурации
 
-Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 7.0.1; они не взяты с компьютера автора.
+Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 7.5.0; они не взяты с компьютера автора.
 
 | Ключ | Тип | По умолчанию |
 | --- | --- | --- |
@@ -36,7 +36,7 @@
 | reflective_learning | bool | true |
 | local_execution | bool | true |
 | local_chronicle | bool | true |
-| runtime_patch | str | "7.0.1" |
+| runtime_patch | str | "7.5.0" |
 | response_max_bytes | int | 33554432 |
 | saves_directory | str | "saves" |
 | manager_every | int | 10 |

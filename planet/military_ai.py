@@ -3,7 +3,7 @@ from .modern_catalog import UNITS,BUILDINGS
 import re
 
 MILITARY_RULES='''
-ПАТЧ 7.0.1 — ОБЯЗАТЕЛЬНО ПРОВЕРЯЙ СОЗДАНИЕ АРМИИ В ВОЙНУ. В начале каждого военного хода посчитай собственные combat_units и прочитай recruitment_options. Если боевых частей нет или фронту нужны подкрепления и найм доступен, первым вариантом рассматривай mobilize: добавь настоящий unit с unit="army" либо recruit_modern в actions. Не трать весь бюджет на второстепенную стройку/торговлю, оставив войну без войск. Один приказ с count=N может нанять доступную группу. Письмо «создам армию», действие army для перемещения и разведчик НЕ создают боевые части. Если сознательно не нанимаешь, укажи конкретный расчёт: бюджет с учётом снабжения/маршрута, силы и участок, препятствие или альтернативную операцию и срок пересмотра; общая фраза о мире или нехватке входных данных при переданных шаблонах не заменяет решения. Никто не создаёт и не оплачивает войска вместо тебя. Не устраивай бездумный найм при голоде: организуй оплату, металл, свободные клетки и снабжение реальными приказами.
+ПАТЧ 7.5.0 — ОБЯЗАТЕЛЬНО ПРОВЕРЯЙ СОЗДАНИЕ АРМИИ В ВОЙНУ. В начале каждого военного хода посчитай собственные combat_units и прочитай recruitment_options. Если боевых частей нет или фронту нужны подкрепления и найм доступен, первым вариантом рассматривай mobilize: добавь настоящий unit с unit="army" либо recruit_modern в actions. Не трать весь бюджет на второстепенную стройку/торговлю, оставив войну без войск. Один приказ с count=N может нанять доступную группу. Письмо «создам армию», действие army для перемещения и разведчик НЕ создают боевые части. Если сознательно не нанимаешь, укажи конкретный расчёт: бюджет с учётом снабжения/маршрута, силы и участок, препятствие или альтернативную операцию и срок пересмотра; общая фраза о мире или нехватке входных данных при переданных шаблонах не заменяет решения. Никто не создаёт и не оплачивает войска вместо тебя. Не устраивай бездумный найм при голоде: организуй оплату, металл, свободные клетки и снабжение реальными приказами.
 ПАТЧ 6.8 — ВОЙНУ ВЕДУТ ПРИКАЗЫ. Объявление войны и грозное письмо не создают солдат, не захватывают клетки и не защищают границу. army как TYPE ДЕЙСТВИЯ — приказ ПЕРЕМЕЩЕНИЯ уже существующего unit_id. Для СОЗДАНИЯ обычной армии нужен unit {cell,unit:"army",strength:1..10}; выше5 требуется технология army. recruit_modern создаёт открытый современный тип по его цене, экипажу и снабжению. Бери готовые реальные шаблоны из military.recruitment_options, но суммируй их стоимость с остальными приказами. Каждый найм занимает свободную собственную сухопутную клетку; два юнита на одной клетке не появляются. Нет клетки — сначала перемести своё формирование и проверь порядок действий. Нет денег/металла/экипажа — поставь конкретную закупку/производство, укрепление или отход, а не повторяй пустое обещание мобилизации.
 Военный минимум УДАЛЁН. Никто не наймёт войска вместо тебя. unit/recruit_modern с count=N создают группу без лимита двух; число ограничено ресурсами, экипажем и свободными клетками. Один такой приказ занимает одно место из12. Найм всей группы атомарный: если средств или мест не хватает, не нанимается никто. policy.unit_limit относится только к дежурным разведчикам и не ограничивает явный боевой найм. При войне сопоставь боевые части, силы врага, снабжение, резерв и сроки. Найми достаточную группу до второстепенных трат, если выгода оправданна. military_response mobilize/maneuver/fortify/hold/defer должен соответствовать приказам, маршруту или конкретному барьеру; пересмотр не позже двух дней. Меньшая общая армия допускает ограниченную операцию с локальным перевесом, но уверенность без расчёта не является преимуществом.
 ПОГРАНИЧНАЯ ОБОРОНА. У общей границы оцени стены на вероятных направлениях вторжения и ценных проходах; башни — рядом с фронтом и гарнизоном, чтобы свой юнит реально удержал их полный день. Во время войны стены и башни на угрожаемом участке важнее декоративной стройки в тылу, если не срывают найм и снабжение. wall — преграда, армия её осаждает; tower не стена и не создаёт гарнизон. Полный день в tower даёт бонус со следующего дня; строительство и немедленный уход бонус не дают. Считай цену и место, не заполняй всю границу постройками без нужды и не оставляй армию без денег на движение. Важно защищать производство, подступы и резерв, а не только накапливать здания. Проверяй реальные action_results и фактический найм, а не считай план выполненным.
@@ -12,8 +12,9 @@ MILITARY_RULES='''
 
 def military_schema(day):
     return dict(type='object',properties=dict(choice=dict(type='string',enum=['mobilize','maneuver','fortify','hold','defer']),
-        reason=dict(type='string',minLength=30,maxLength=1800),revisit_day=dict(type='integer',minimum=day,maximum=day+2)),
-        required=['choice','reason','revisit_day'],additionalProperties=False)
+        reason=dict(type='string',minLength=30,maxLength=1800),revisit_day=dict(type='integer',minimum=day,maximum=day+2),
+        orders=dict(type='array',maxItems=4,items=dict(type='object',properties=dict(type=dict(type='string'),args=dict(type='object')),required=['type','args'],additionalProperties=False))),
+        required=['choice','reason','revisit_day','orders'],additionalProperties=False)
 
 
 def war_intent(decision,context):
@@ -72,7 +73,13 @@ class MilitaryPlanning:
                 cost=self.modern_recruitment_cost(kind)
                 if population-info['crew']>=2 and self.funds_available(state,cost):
                     options.append(dict(action=dict(type='recruit_modern',args=dict(cell=list(sites[0]),unit=kind)),cost=cost,crew=info['crew']))
+        for option in options:
+            maximum=min([len(sites)]+[int(state.stocks.get(k,0)//v) for k,v in option['cost'].items() if v>0])
+            if option.get('crew'):maximum=min(maximum,max(0,(population-2)//option['crew']))
+            option['max_count']=maximum
+        from .operation_support import offensive_options
         return dict(enemies=enemies,combat_units=[dict(id=u['id'],type=u['type'],cell=list(u['cell']),strength=self.effective_strength(u),order=u.get('order'),embarked_on=u.get('embarked_on')) for u in units],
+                    offensive_options=offensive_options(self,state,units),
                     recruitment_priority=dict(at_war=bool(enemies),no_combat_units=not units,can_recruit_now=bool(options),
                         instruction='При войне без боевых частей и доступном найме сначала оцени mobilize и добавь реальный приказ из recruitment_options. Отказ требует конкретного расчёта; армия не появится от письма.'),
                     combat_count=len(units),border_cells=border[:16],hostile_border_cells=hostile[:16],recruitment_sites=sites[:8],recruitment_options=options,

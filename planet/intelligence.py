@@ -214,6 +214,8 @@ def normalize_decision(decision,context):
         if not isinstance(action,dict): out.append(action); continue
         kind=action.get('type',action.get('action')); args=action.get('args',{})
         if not isinstance(args,dict): out.append(action); continue
+        if kind=='army' and 'unit_id' not in args and 'cell' in args and 'target_cell' not in args and ('strength' in args or args.get('unit',args.get('type'))=='army'):
+            kind='unit';args['unit']='army';changes.append(dict(index=index,fix='explicit_army_creation_not_movement'))
         if kind=='do_nothing': changes.append(dict(index=index,fix='removed_no_effect')); continue
         if kind=='build':
             if 'building' not in args and isinstance(args.get('type'),str): args['building']=args['type']

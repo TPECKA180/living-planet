@@ -25,6 +25,9 @@ def decision_schema(state,context,actions,deep=True,strict_actions=False):
         properties['notes']={**string,'type':['string','null']}
         properties['plan']={**string,'type':['string','null']}
         properties['economic_review']['properties']['orders']['items']=action_schema(ECONOMIC_ACTIONS,context)
+        if 'military_response' in properties:
+            from .operation_support import MILITARY_ACTIONS
+            properties['military_response']['properties']['orders']['items']=action_schema(MILITARY_ACTIONS,context)
         item=action_schema(actions,context)
     else: item=dict(type='object',properties=dict(type=dict(type='string',enum=list(actions)),args=dict(type='object')),required=['type','args'],additionalProperties=False)
     properties['actions']=dict(type='array',maxItems=12,items=item)

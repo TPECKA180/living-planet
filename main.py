@@ -41,11 +41,11 @@ class Runner:
         self.busy=True
         threading.Thread(target=self.work,daemon=True).start()
 
-    def prepare_actor(self,w,state,decision,legacy=False):
+    def prepare_actor(self,w,state,decision,legacy=False,own_context=None):
         if self.config.get('local_execution',False):
             from planet.local_execution import prepare_locally
             self.messages.put(('status','Локальная проверка приказов · '+state.name+' · без нейросети'))
-            return prepare_locally(w,state,decision,self.config)
+            return prepare_locally(w,state,decision,self.config,own_context=own_context)
         from planet.learning import decision_signature
         self.messages.put(('status','Подготовка приказов · '+state.name))
         if legacy:
@@ -69,8 +69,10 @@ class Runner:
                 self.console.emit('request_start',f'День {w.day} · {s.name} · подготовка модели и контекста')
                 self.messages.put(('status',f'День {w.day}: решение {w.cursor+1}/{len(w.states)} · {s.name}'))
                 decision=w.pending_decisions.get(s.id)
+                own_context=None
                 if decision is None:
-                    decision=(dict(thinking='Государство выбыло; история сохранена.',notes=s.notes,plan=s.plan,diplomacy=[],actions=[]) if s.eliminated else brain.think(s,w.context(s,self.config)))
+                    if not s.eliminated:own_context=w.context(s,self.config)
+                    decision=(dict(thinking='Государство выбыло; история сохранена.',notes=s.notes,plan=s.plan,diplomacy=[],actions=[]) if s.eliminated else brain.think(s,own_context))
                     w.pending_decisions[s.id]=decision; self.store.save(w)
                     self.messages.put(('world',self.store.last_snapshot))
                 if not s.eliminated:
@@ -83,7 +85,7 @@ class Runner:
                         self.messages.put(('status','Разбор и досье · '+s.name))
                         decision=brain.review_strategy(s,w.context(s,self.config),decision)
                     elif not self.config.get('local_execution',False) and self.config.get('review_relations',False): decision=brain.review_relationships(s,w.context(s,self.config),decision)
-                    decision=self.prepare_actor(w,s,decision)
+                    decision=self.prepare_actor(w,s,decision,own_context=own_context if self.config.get('local_execution',False) else None)
                     w.pending_decisions[s.id]=decision
                 w.cursor+=1
                 if w.cursor==len(w.states): w.phase='resolution'
@@ -114,6 +116,8 @@ class Runner:
                     else:
                         self.messages.put(('status','Менеджер создаёт новую главу…'))
                         candidate.manager(brain.manager(candidate))
+                from planet.world_history import write_history
+                write_history(candidate)
                 candidate.in_day=False; candidate.cursor=0; candidate.phase='idle'
                 self.store.save(candidate); self.world=w=candidate
             self.messages.put(('world',self.store.last_snapshot))
@@ -145,7 +149,7 @@ def settings(config):
 class App:
     def __init__(self,world,store,config):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v7.0.1 · лаборатория миров')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v7.5.0 · лаборатория миров')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
         self.font=pg.font.SysFont('segoeui',17); self.small=pg.font.SysFont('segoeui',14)
         self.title=pg.font.SysFont('segoeui',30,bold=True); self.medium=pg.font.SysFont('segoeui',21,bold=True)
@@ -156,7 +160,7 @@ class App:
         self.switch_requested=False; self.unit_markers=[]
         self.retry_after=0
         self.activity=None
-        self.chronicle_tab=0;self.learning_scroll=0;self.learning_max_scroll=0
+        self.chronicle_tab=0;self.learning_scroll=0;self.learning_max_scroll=0;self.history_scroll=0;self.history_max_scroll=0
         from planet.pixel_art import PixelAtlas
         self.atlas=PixelAtlas(); self.forecasts={}; self.view_positions={}; self.strategy_cache={}; self.construction_cache={}; self.relation_windows={}; self.industry_windows={}
         self.focus_unit_id=None; self.preview_key=None; self.preview_route=None; self.map_notice=''
@@ -292,7 +296,7 @@ class App:
     def draw(self):
         pg=self.pg; width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('7.0.1  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
+        self.text('7.5.0  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -511,12 +515,20 @@ class App:
         self.box((28,cy,map_width,height-cy-22))
         self.button('Хроника',(40,cy+7,120,28),'bottom:0',self.chronicle_tab==0)
         self.button('Обучение',(168,cy+7,132,28),'bottom:1',self.chronicle_tab==1)
+        self.button('Летопись',(308,cy+7,140,28),'bottom:2',self.chronicle_tab==2)
         self.learning_rect=pg.Rect(40,cy+35,map_width-20,height-cy-61)
         recent=[e for e in self.world.events if e['kind']!='action'][-3:]
         y=cy+39
         self.screen.set_clip(pg.Rect(40,cy+35,map_width-20,height-cy-61))
         if self.chronicle_tab==0:
             for e in reversed(recent):y=self.wrapped(f"{e['day']:04d}  {e['text']}",45,y,map_width-34,self.small)+3
+        elif self.chronicle_tab==2:
+            y-=self.history_scroll
+            if not self.world.history_book:y=self.wrapped('Первый лист появится после завершения10-го дня. Колесо прокручивает летопись.',45,y,map_width-34,self.small,MUTED)
+            for page in reversed(self.world.history_book):
+                y=self.wrapped(page['title']+f" · дни {page['from_day']}–{page['day']}",45,y,map_width-34,self.small,ACCENT)+8
+                y=self.wrapped(page['text'],45,y,map_width-34,self.small)+18
+            self.history_max_scroll=max(0,y+self.history_scroll-self.learning_rect.bottom+10)
         else:
             record=self.world.learning_record(s.id);y-=self.learning_scroll
             y=self.wrapped(f"{s.name} · награда {record['score']:+.3f} · обратная связь, без изменения весов",45,y,map_width-34,self.small,ACCENT)+5
@@ -568,7 +580,7 @@ class App:
             if not self.config.get('model') and not all(self.config.get('state_models',{}).get(s.id) for s in self.world.states if not s.eliminated):
                 self.running=False;self.status='Выберите модель в «LM Studio · F2», затем запустите наблюдение.';return
         if action.startswith('bottom:'):
-            self.chronicle_tab=int(action.split(':')[1]);self.learning_scroll=0;return
+            self.chronicle_tab=int(action.split(':')[1]);self.learning_scroll=0;self.history_scroll=0;return
         if action=='run':
             self.running=not self.running; self.target_day=None
             if self.running: self.error=''
@@ -579,7 +591,7 @@ class App:
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v7.0.1 · лаборатория миров')
+            self.pg.display.set_caption('Живая планета · v7.5.0 · лаборатория миров')
             if changed:
                 enabled=self.config.get('external_console',True)
                 if not enabled: self.runner.console.close()
@@ -679,7 +691,8 @@ class App:
                     elif event.key==pg.K_F2: self.action('settings')
                     elif event.key==pg.K_r: self.zoom=1; self.pan=[0.,0.]
                 elif event.type==pg.MOUSEWHEEL:
-                    if self.chronicle_tab==1 and getattr(self,'learning_rect',self.map_rect).collidepoint(pg.mouse.get_pos()):self.learning_scroll=max(0,min(self.learning_max_scroll,self.learning_scroll-event.y*42))
+                    if self.chronicle_tab==2 and getattr(self,'learning_rect',self.map_rect).collidepoint(pg.mouse.get_pos()):self.history_scroll=max(0,min(self.history_max_scroll,self.history_scroll-event.y*42))
+                    elif self.chronicle_tab==1 and getattr(self,'learning_rect',self.map_rect).collidepoint(pg.mouse.get_pos()):self.learning_scroll=max(0,min(self.learning_max_scroll,self.learning_scroll-event.y*42))
                     elif self.map_rect.collidepoint(pg.mouse.get_pos()): self.zoom=max(1,min(64,self.zoom*(1.2**event.y)))
                     else: self.scroll=max(0,min(getattr(self,'max_scroll',0),self.scroll-event.y*42))
                 elif event.type==pg.MOUSEBUTTONDOWN and event.button==1:
