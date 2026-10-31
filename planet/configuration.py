@@ -4,13 +4,13 @@ import json
 from pathlib import Path
 
 DEFAULTS=dict(host='http://localhost:1234/v1',model='',manager_model='',state_models={},
-    api_key='',timeout=600,temperature=.7,context_window=98304,max_tokens=16384,input_tokens=28000,
+    api_key='',timeout=600,temperature=.7,context_window=131072,max_tokens=16384,input_tokens=56000,
     context_retry_attempts=8,decision_repair_attempts=3,context_map_cells=4096,context_history=200,
     context_events=150,context_memories=40,context_messages=200,manage_model_context=True,
     strict_state_isolation=True,external_console=True,stream=True,deep_strategy=True,
     review_relations=True,structured_reviews=True,structured_primary=True,decision_compiler=True,
     calibrate_context=True,detect_repetition=True,unified_execution_review=True,
-    reflective_learning=True,local_execution=True,local_chronicle=True,runtime_patch='7.0',
+    reflective_learning=True,local_execution=True,local_chronicle=True,runtime_patch='7.0.1',
     response_max_bytes=33554432,saves_directory='saves',manager_every=10,seed=42,states=4,
     database='data/planet.sqlite3')
 

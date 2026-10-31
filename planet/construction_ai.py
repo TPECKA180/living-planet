@@ -28,7 +28,7 @@ class ConstructionAI:
         return result
 
     def review_construction(self,state,context,decision):
-        if decision.get('origin_patch') not in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0'): return decision
+        if decision.get('origin_patch') not in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1'): return decision
         context=checked_context(state,context,decision); self.bind_actor(state.id)
         result=copy.deepcopy(decision)
         if self.config.get('decision_compiler',False):

@@ -30,7 +30,7 @@ class PublicReleaseTests(unittest.TestCase):
             with patch.object(Dialog,'events',return_value=['save']):self.assertTrue(edit_settings(folder,config))
             saved=json.loads((Path(folder)/'config.json').read_text(encoding='utf-8'))
             self.assertEqual(saved['api_key'],'fixture-token');self.assertEqual(saved['context_memories'],73)
-            self.assertEqual(saved['input_tokens'],28000)
+            self.assertEqual(saved['input_tokens'],56000)
             pg.quit()
     def test_secret_field_never_renders_the_token(self):
         dialog=Dialog('Test',(800,300));dialog.field('api_key','API','fixture-private-token',(20,70,400,35),secret=True)

@@ -126,7 +126,7 @@ def edit_settings(app_root,config,screenshot=None):
     for i,(key,label,value) in enumerate(fields): dialog.field(key,label,value,(34,103+i*61,620,35))
     dialog.field('api_key','API-ключ · только если сервер требует авторизацию',config.get('api_key',''),(34,103+len(fields)*61,620,35),secret=True)
     number_fields=[('context_window','Окно, токены',196608),('max_tokens','Ответ, токены',28000),
-                   ('input_tokens','Вход: данные, токены',28000),('context_map_cells','Клеток в промте',4096)]
+                   ('input_tokens','Вход: данные, токены',56000),('context_map_cells','Клеток в промте',4096)]
     for i,(key,label,default) in enumerate(number_fields):
         dialog.field(key,label,config.get(key,default),(698+(i%2)*190,438+(i//2)*68,172,35))
     strict=config.get('strict_state_isolation',True)

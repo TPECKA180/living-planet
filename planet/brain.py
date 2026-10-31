@@ -206,11 +206,11 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             system=COMPACT_RULES if estimate(COMPACT_RULES)<=max(256,window-output-2048) else TINY_RULES
         from .context import ContextCapacityError
         ratio=getattr(self,'current_token_ratio',2)
-        try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=int(self.config.get('input_tokens',28000)))
+        try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=int(self.config.get('input_tokens',56000)))
         except ContextCapacityError:
             # 28000 is the desired user-data budget, not permission to erase facts.
             result=fit(system,context,window,output,bytes_per_token=ratio)
-            result['context_info']['requested_user_input_tokens']=int(self.config.get('input_tokens',28000))
+            result['context_info']['requested_user_input_tokens']=int(self.config.get('input_tokens',56000))
             result['context_info']['expanded_for_actionable_data']=True
             return result
 
@@ -218,7 +218,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         from .response_io import ResponseTooLarge
         if not model: raise ValueError('Выберите модель в настройках (F2)')
         context=dict(context); response_schema=context.pop('_response_schema',None)
-        signature=(self.config.get('host'),self.config.get('context_window'),self.config.get('manage_model_context'),self.config.get('max_tokens'),self.config.get('input_tokens',28000))
+        signature=(self.config.get('host'),self.config.get('context_window'),self.config.get('manage_model_context'),self.config.get('max_tokens'),self.config.get('input_tokens',56000))
         if signature!=self.capacity_signature:
             self.context_limits.clear(); self.response_limits.clear(); self.token_ratios.clear(); self.capacity_signature=signature
         model,window=self.prepare_model(model)
@@ -231,7 +231,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         for attempt in range(attempts):
             output=min(self.response_limits.get(model,int(self.config.get('max_tokens',28000))),max(256,window//3))
             actual_system=system
-            desired_input=max(1024,int(self.config.get('input_tokens',28000)))
+            desired_input=max(1024,int(self.config.get('input_tokens',56000)))
             # The same context window holds system + user data + model output.
             # Reserve the requested factual input BEFORE a generous answer cap.
             if system==RULES and estimate(system)+min(desired_input,window//2)+1024>window:
@@ -367,7 +367,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     if self.config.get('decision_compiler',False):
                         result=normalize_decision(result,context); validate_actions(result,context)
                     self.validate_decision(result,state,context)
-                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.0'
+                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.0.1'
                     deep_complete=False
                     if self.config.get('deep_strategy',False):
                         try: validate_assessment(result,state,base_context); deep_complete=True
@@ -379,12 +379,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         try: validate_assessment(result,state,base_context)
                         except ValueError as exc: deep_complete=False; result['strategic_review_required']=str(exc)
                     if deep_complete: result['relation_review_attempted']=context['day']; result['strategic_review_completed']=context['day']
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1'):
                         try: result=self.compile_construction(context,result)
                         except ValueError as exc:
                             result['construction_review_required']=str(exc)
                             self.emit('status','Основной ответ сохранится; уточним только стройку: '+str(exc))
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1'):
                         try: result=self.compile_economy(state,context,result)
                         except (ValueError,TypeError,KeyError) as exc:
                             result['economic_review_required']=str(exc)

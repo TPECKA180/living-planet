@@ -56,11 +56,11 @@ class Mobility(Naval):
                 if not self.terrain_allowed(unit,point): continue
                 if self.wall_hitpoints(cell)>0 and cell.owner not in (None,state.id) and not self.combat_unit(unit): continue
                 if cell.owner in allies: continue
+                if cell.owner not in (None,state.id) and self.war_permission(state.id,cell.owner): continue
                 if other:
                     if other['owner']==state.id or other['owner'] in allies: continue
-                    if explore or point!=goal: continue
+                    if explore: continue
                 if explore and cell.owner not in (None,state.id): continue
-                if not explore and cell.owner not in (None,state.id) and point!=goal: continue
                 previous[point]=position; frontier.append(point)
         if found is None: return None
         route=[]
@@ -113,6 +113,12 @@ class Mobility(Naval):
         if hostile:
             enemy=other['owner'] if other else old_owner
             if enemy: self.set_war(state.id,enemy,f'Атака клетки {target}',attack=True)
+            if arrived and old_owner not in (None,state.id):
+                record=self.relation(old_owner,state.id)
+                if record.get('last_border_violation_day')!=self.day:
+                    self.relation_fact(old_owner,state.id,'border_violation',f'Вторжение через границу в {target}',-10)
+                    record['last_border_violation_day']=self.day
+                    record['grievances'].append(dict(day=self.day,text=f'{state.name}: вооружённое пересечение границы в {target}',source='engine'))
             if enemy and captured: self.relation_fact(enemy,state.id,'territory_loss',f'Захвачена клетка {target}',-5)
         entry=dict(day=self.day,unit_id=unit['id'],owner=state.id,source=source,target=list(target),
                    arrived=arrived,captured=captured,previous_owner=old_owner,cost=cost,automatic=automatic,**(dict(kind='siege') if sieging else {}))

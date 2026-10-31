@@ -1,6 +1,6 @@
 # Все параметры конфигурации
 
-Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 7.0; они не взяты с компьютера автора.
+Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 7.0.1; они не взяты с компьютера автора.
 
 | Ключ | Тип | По умолчанию |
 | --- | --- | --- |
@@ -11,9 +11,9 @@
 | api_key | str | "" |
 | timeout | int | 600 |
 | temperature | float | 0.7 |
-| context_window | int | 98304 |
+| context_window | int | 131072 |
 | max_tokens | int | 16384 |
-| input_tokens | int | 28000 |
+| input_tokens | int | 56000 |
 | context_retry_attempts | int | 8 |
 | decision_repair_attempts | int | 3 |
 | context_map_cells | int | 4096 |
@@ -36,7 +36,7 @@
 | reflective_learning | bool | true |
 | local_execution | bool | true |
 | local_chronicle | bool | true |
-| runtime_patch | str | "7.0" |
+| runtime_patch | str | "7.0.1" |
 | response_max_bytes | int | 33554432 |
 | saves_directory | str | "saves" |
 | manager_every | int | 10 |
