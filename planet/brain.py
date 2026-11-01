@@ -392,7 +392,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 try:
                     result=self.complete(RULES,request_context,model)
                     if self.config.get('decision_compiler',False):
-                        result=normalize_decision(result,context); validate_actions(result,context)
+                        result=normalize_decision(result,context)
+                        try:validate_actions(result,context)
+                        except (ValueError,TypeError,KeyError,AttributeError) as exc:
+                            if not self.config.get('local_execution',False):raise
+                            result.setdefault('action_validation_warnings',[]).append(str(exc))
+                            self.emit('status','Есть замечание к отдельному приказу: '+str(exc)+'. Сохраняем готовый разбор; приказы проверяются по порядку обычным движком без повторной генерации всего решения.')
                     self.validate_decision(result,state,context)
                     if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.1'
                     deep_complete=False
