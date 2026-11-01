@@ -23,7 +23,7 @@ def context_error(error):
     text=str(error).lower()
     return (any(word in text for word in ('context','n_ctx','контекст')) and
             any(word in text for word in ('length','exceed','overflow','limit','full','too','больш','переполн','длин'))) or any(
-                word in text for word in ('prompt too long','too many tokens','out of memory','cuda out of memory','cannot truncate','failed to truncate')) or ('n_ctx' in text and 'n_keep' in text)
+                word in text for word in ('prompt too long','too many tokens','out of memory','cuda out of memory','cannot truncate','failed to truncate','failed to allocate','allocation failed','cannot allocate memory')) or ('n_ctx' in text and 'n_keep' in text)
 
 from .current_prompt import build_rules
 RULES=build_rules()
@@ -54,6 +54,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         self.current_actor=None; self.isolated_signature=None; self.isolated_owner=None
         self.loaded_instance=None
         self.loaded_key=None
+        self.stream_usage_support={}
         self.observer=observer
         self.context_limits={}
         self.capacity_signature=None
@@ -91,7 +92,9 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 # Some compatible servers ignore stream=true. Accept their JSON.
                 if 'text/event-stream' not in response.headers.get('Content-Type','').lower():
                     result=read_json(response,limit)
-                    message=result['choices'][0]['message']
+                    choices=result.get('choices') if isinstance(result,dict) else None
+                    if not isinstance(choices,list) or not choices or not isinstance(choices[0],dict) or not isinstance(choices[0].get('message'),dict):return result
+                    message=choices[0]['message']
                     for field,kind in (('reasoning_content','reasoning'),('reasoning','reasoning'),('content','content')):
                         if isinstance(message.get(field),str): self.emit(kind,message[field])
                     return result
@@ -119,6 +122,8 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                             if choice.get('finish_reason'): finish=choice['finish_reason']; ended=True
                 if not ended: raise RuntimeError('Поток LM Studio оборвался до завершения ответа; ход не применён')
                 return dict(choices=[dict(message=dict(content=''.join(fragments)),finish_reason=finish or 'stop')],usage=usage)
+        except (ValueError,KeyError,TypeError,IndexError,AttributeError) as exc:
+            raise RuntimeError(f'Некорректный поток LM Studio; неполное решение не применено: {exc}') from exc
         except urllib.error.HTTPError as exc:
             raise RuntimeError(f'LM Studio HTTP {exc.code}: {exc.read(4096).decode(errors="replace")[:4000]}') from exc
         except (urllib.error.URLError,TimeoutError) as exc:
@@ -200,8 +205,13 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         self.loaded_instance=loaded['instance_id']; self.loaded_key=info['key']
         return self.loaded_instance,min(desired,actual)
 
+    def answer_budget(self,system,window,limit=None):
+        requested=int(self.config.get('max_tokens',196608)) if limit is None else int(limit)
+        available=max(256,window-estimate(system)-max(1024,int(self.config.get('input_tokens',56000)))-2048)
+        return max(256,min(requested,available))
+
     def fit_context(self,system,context,window,output=None):
-        output=output if output is not None else min(int(self.config.get('max_tokens',28000)),max(256,window//3))
+        output=output if output is not None else self.answer_budget(system,window)
         if system==RULES and estimate(system)>max(256,window-output-2048):
             system=COMPACT_RULES if estimate(COMPACT_RULES)<=max(256,window-output-2048) else TINY_RULES
         from .context import ContextCapacityError
@@ -220,16 +230,16 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         context=dict(context); response_schema=context.pop('_response_schema',None)
         signature=(self.config.get('host'),self.config.get('context_window'),self.config.get('manage_model_context'),self.config.get('max_tokens'),self.config.get('input_tokens',56000))
         if signature!=self.capacity_signature:
-            self.context_limits.clear(); self.response_limits.clear(); self.token_ratios.clear(); self.capacity_signature=signature
+            self.context_limits.clear(); self.response_limits.clear(); self.token_ratios.clear(); self.stream_usage_support.clear(); self.capacity_signature=signature
         model,window=self.prepare_model(model)
         self.current_token_ratio=self.token_ratios.get(model,2) if self.config.get('calibrate_context',False) else 2
         if self.config.get('strict_state_isolation',False) and self.isolated_owner!=(getattr(self,'current_actor',None) or '__service__'):
             raise IsolationError('Владелец экземпляра модели не совпадает с участником запроса')
         window=min(window,self.context_limits.get(model,window))
         attempts=max(1,int(self.config.get('context_retry_attempts',8)))
-        repair=None
+        repair=None;envelope_error=None
         for attempt in range(attempts):
-            output=min(self.response_limits.get(model,int(self.config.get('max_tokens',28000))),max(256,window//3))
+            output=self.answer_budget(system,window,self.response_limits.get(model))
             actual_system=system
             desired_input=max(1024,int(self.config.get('input_tokens',56000)))
             # The same context window holds system + user data + model output.
@@ -256,12 +266,13 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     self.emit('status','Сохраняем данные для действий; уменьшаем резерв ответа и повторяем подготовку запроса.')
                     continue
                 raise AutomaticRetry(str(exc)) from exc
-            self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, ответ до {output} токенов · попытка {attempt+1}',window=window)
+            self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, вход до {desired_input} + правила, ответ до {output} из запрошенных {int(self.config.get("max_tokens",196608))} токенов · попытка {attempt+1}',window=window,requested_output=int(self.config.get('max_tokens',196608)),actual_output=output,estimated_input=fitted['context_info']['estimated_input_tokens'])
             if fitted['context_info']['trimmed']:
                 self.emit('status','Контекст сокращён только для запроса: '+json.dumps(fitted['context_info']['trimmed'],ensure_ascii=False))
             payload=dict(model=model,messages=[dict(role='system',content=actual_system),
                 dict(role='user',content=json.dumps(fitted,ensure_ascii=False,separators=(',',':')))],
                 temperature=self.config.get('temperature',.7),max_tokens=output,stream=self.config.get('stream',True))
+            if payload['stream'] and self.stream_usage_support.get(model,True):payload['stream_options']=dict(include_usage=True)
             if response_schema and self.config.get('structured_reviews',True) and self.schema_support.get(model,True): payload['response_format']=response_schema
             try:
                 response=self.stream_request(payload) if payload['stream'] else self.request('/chat/completions',payload)
@@ -274,6 +285,10 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 self.emit('status','Обнаружено зацикливание текста. Повторяем только текущий запрос, не увеличивая бессмысленный повтор и не применяя черновик.')
                 continue
             except RuntimeError as exc:
+                if 'stream_options' in payload and 'stream_options' in str(exc).lower():
+                    self.stream_usage_support[model]=False
+                    self.emit('status','Сервер не поддерживает статистику потока; повторяем без stream_options. Решение и входной бюджет сохранены.')
+                    continue
                 if 'response_format' in payload and any(term in str(exc).lower() for term in ('schema','grammar','response_format','not supported')):
                     self.schema_support[model]=False
                     self.emit('status','Сервер не принял JSON-схему дополнения. Используем уточнение с обычной проверкой структуры.')
@@ -283,22 +298,33 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 window=max(2048,int(window*.55)); self.context_limits[model]=window
                 self.emit('status',f'Переполнение: сокращаем запрос до бюджета {window} токенов и повторяем тот же ход.')
                 continue
-            self.emit('request_end','Ответ получен. '+json.dumps(response.get('usage',{}),ensure_ascii=False))
-            prompt_tokens=response.get('usage',{}).get('prompt_tokens')
+            choices=response.get('choices') if isinstance(response,dict) else None
+            if not isinstance(choices,list) or not choices or not isinstance(choices[0],dict) or not isinstance(choices[0].get('message'),dict):
+                envelope_error='Сервер вернул ответ без choices/message; повторяем запрос, не изменяя день.'
+                self.emit('status',envelope_error);continue
+            envelope_error=None
+            usage=response.get('usage') or {}
+            if not isinstance(usage,dict):usage={}
+            self.emit('request_end','Ответ получен. '+json.dumps(usage,ensure_ascii=False))
+            prompt_tokens=usage.get('prompt_tokens')
             if self.config.get('calibrate_context',False) and type(prompt_tokens) is int and prompt_tokens>0:
                 byte_count=sum(len(m['content'].encode('utf-8')) for m in payload['messages'])
                 ratio=max(2,min(3.5,byte_count/(prompt_tokens*1.45)))
                 self.token_ratios[model]=min(self.token_ratios.get(model,3.5),ratio)
             choice=response['choices'][0]
             if choice.get('finish_reason')=='length':
-                larger=min(output*2,max(256,window//3),32768)
+                larger=self.answer_budget(actual_system,window,min(output*2,int(self.config.get('max_tokens',196608))))
                 if larger>output:
                     self.response_limits[model]=larger
-                    self.emit('status',f'Ответ обрезан. Выделяем до {larger} токенов ответа, сокращаем входящий контекст и повторяем без применения неполного решения.')
+                    self.emit('status',f'Ответ обрезан. Выделяем до {larger} токенов ответа, сохраняем входной бюджет и повторяем без применения неполного решения.')
                     continue
-                raise AutomaticRetry('Модель исчерпала лимит ответа. Неполное решение не применено; автоматический повтор через 5 секунд.')
+                repair=dict(error='Ответ достиг предельного бюджета; неполный JSON не применён.',instruction='Верни полный JSON компактнее, без повторов. Сохрани все обязательные поля, конкретные приказы и собственную стратегию. notes/plan=null допустимы для сохранения прежних. Не повторяй весь прежний ответ.')
+                self.emit('status','Достигнут доступный предел ответа. Уточняем компактную форму JSON с тем же входным бюджетом; мир не изменён.')
+                continue
             content=choice['message'].get('content')
-            if not isinstance(content,str): raise ValueError('Модель вернула пустой/нетекстовый ответ')
+            if not isinstance(content,str):
+                repair=dict(error='Модель вернула пустой/нетекстовый ответ',instruction='Верни полный JSON-объект в content, без вызовов инструментов.')
+                self.emit('status','Пустой ответ: повторяем с уточнением формата, не применяя решение.');continue
             try:
                 parsed=parse_json(content)
                 if not isinstance(parsed,dict): raise ValueError('Верхний уровень должен быть JSON-объектом, не списком/строкой')
@@ -307,6 +333,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 repair=dict(error=str(exc),previous_response=content[-12000:])
                 self.emit('status','Ответ не является корректным JSON. Уточняем формат и повторяем запрос; день не пропущен.')
                 continue
+        if envelope_error:raise AutomaticRetry(envelope_error)
         if repair: raise AutomaticRetry('Ответы всё ещё не являются JSON после уточнений. Автоматический повтор через 5 секунд; ход и готовые решения сохранены.')
         raise AutomaticRetry('Сервер всё ещё сообщает о переполнении. Контекст уже сокращён; автоматический повтор через 5 секунд, ход сохранён.')
 
@@ -367,7 +394,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     if self.config.get('decision_compiler',False):
                         result=normalize_decision(result,context); validate_actions(result,context)
                     self.validate_decision(result,state,context)
-                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.0'
+                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.1'
                     deep_complete=False
                     if self.config.get('deep_strategy',False):
                         try: validate_assessment(result,state,base_context); deep_complete=True
@@ -379,12 +406,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         try: validate_assessment(result,state,base_context)
                         except ValueError as exc: deep_complete=False; result['strategic_review_required']=str(exc)
                     if deep_complete: result['relation_review_attempted']=context['day']; result['strategic_review_completed']=context['day']
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.1'):
                         try: result=self.compile_construction(context,result)
                         except ValueError as exc:
                             result['construction_review_required']=str(exc)
                             self.emit('status','Основной ответ сохранится; уточним только стройку: '+str(exc))
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.1'):
                         try: result=self.compile_economy(state,context,result)
                         except (ValueError,TypeError,KeyError) as exc:
                             result['economic_review_required']=str(exc)

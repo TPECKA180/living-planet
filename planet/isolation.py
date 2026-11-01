@@ -73,7 +73,7 @@ class StrictIsolation:
             message=str(exc).lower()
             if desired>2048 and (context_error(exc) or 'insufficient' in message and ('memory' in message or 'resources' in message)):
                 self.load_limits[info['key']]=max(2048,int(desired*.65))
-                self.emit('status','Чистый экземпляр не вместил окно; уменьшаем его по ошибке сервера и повторяем загрузку.')
+                self.emit('status',f'Сервер отказал в окне {desired} по памяти; пробуем {self.load_limits[info["key"]]} токенов. Запрошенное в настройках окно {self.config.get("context_window")} сохранено.')
                 return self.prepare_isolated_model(info['key'])
             raise IsolationError('Не удалось загрузить чистый экземпляр: '+str(exc)) from exc
         actual=loaded.get('load_config',{}).get('context_length')

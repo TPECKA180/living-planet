@@ -74,7 +74,7 @@ class ExecutionStageTests(unittest.TestCase):
             with patch.object(runner.brain,'prepare_execution',side_effect=prepare),patch.object(runner.brain,'russify',side_effect=lambda d,m:d):runner.work()
             self.assertEqual(runner.world.phase,'manager')
     def test_configuration_upgrade_above_27000_keeps_larger_limits(self):
-        cfg=dict(max_tokens=26000,context_window=196608,runtime_patch='6.6');self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],28000);self.assertEqual(cfg['context_window'],196608)
+        cfg=dict(max_tokens=26000,context_window=196608,runtime_patch='6.6');self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['context_window'],262144)
         cfg['max_tokens']=32768;self.assertFalse(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],32768)
 
 if __name__=='__main__':unittest.main()

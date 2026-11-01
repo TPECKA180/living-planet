@@ -38,10 +38,10 @@ class Patch66Tests(unittest.TestCase):
         self.assertEqual(len(calls),1);self.assertNotIn('own_context',calls[0]);self.assertIn('stocks',calls[0]);self.assertIn('construction',calls[0]);self.assertIn('error',calls[0])
     def test_response_limit_upgrade_once_preserves_host_keys_and_later_user_settings(self):
         cfg=dict(max_tokens=16384,context_window=196608,host='http://custom/v1',api_key='private',deep_strategy=True)
-        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],28000);self.assertEqual(cfg['host'],'http://custom/v1');self.assertEqual(cfg['api_key'],'private');self.assertTrue(cfg['deep_strategy'])
+        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['host'],'http://custom/v1');self.assertEqual(cfg['api_key'],'private');self.assertTrue(cfg['deep_strategy'])
         cfg['max_tokens']=30000;self.assertFalse(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],30000)
     def test_existing_larger_output_limit_is_kept(self):
-        cfg=dict(max_tokens=32768);upgrade_config(cfg);self.assertEqual(cfg['max_tokens'],32768)
+        cfg=dict(max_tokens=196608);upgrade_config(cfg);self.assertEqual(cfg['max_tokens'],196608)
     def test_service_retry_retains_partial_order_corrections(self):
         d=self.decision();d['actions']=[dict(type='research',args=dict(tech='not_a_tech',cell=self.w.positions(self.s.id)[0]))]
         update=dict(actions=[dict(type='research',args=dict(tech='another_bad_tech',cell=self.w.positions(self.s.id)[0]))])

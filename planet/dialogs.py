@@ -125,7 +125,7 @@ def edit_settings(app_root,config,screenshot=None):
     fields += [(f'state_{i+1}',f'Государство {i+1} · модель (пусто = общая)',config.get('state_models',{}).get(f'state_{i+1}','')) for i in range(config.get('states',4))]
     for i,(key,label,value) in enumerate(fields): dialog.field(key,label,value,(34,103+i*61,620,35))
     dialog.field('api_key','API-ключ · только если сервер требует авторизацию',config.get('api_key',''),(34,103+len(fields)*61,620,35),secret=True)
-    number_fields=[('context_window','Окно, токены',196608),('max_tokens','Ответ, токены',28000),
+    number_fields=[('context_window','Окно, токены',262144),('max_tokens','Ответ, токены',196608),
                    ('input_tokens','Вход: данные, токены',56000),('context_map_cells','Клеток в промте',4096)]
     for i,(key,label,default) in enumerate(number_fields):
         dialog.field(key,label,config.get(key,default),(698+(i%2)*190,438+(i//2)*68,172,35))
@@ -154,7 +154,7 @@ def edit_settings(app_root,config,screenshot=None):
                     if not value['host'].startswith(('http://','https://')) or not value['model']: raise ValueError('Укажите HTTP-адрес и модель')
                     nums={key:int(dialog.fields[key]['value']) for key,_,_ in number_fields}
                     if not 16384<=nums['context_window']<=1048576: raise ValueError('Окно: от 16384 до 1048576 токенов')
-                    if not 1024<=nums['max_tokens']<=nums['context_window']//2: raise ValueError('Ответ: от 1024 до половины контекста')
+                    if not 1024<=nums['max_tokens']<nums['context_window']: raise ValueError('Ответ: от1024 до размера общего окна минус1; реальный резерв учитывает вход и сервер')
                     if not 50<=nums['context_map_cells']<=20000: raise ValueError('Карта: 50–20000 клеток')
                     if not 1024<=nums['input_tokens']<=1048576: raise ValueError('Входные данные: от1024 до1048576 токенов; фактический предел зависит от общего окна')
                     updated=copy.deepcopy(config); updated.update(nums)
@@ -180,8 +180,8 @@ def edit_settings(app_root,config,screenshot=None):
         dialog.button(('ВКЛ' if managed else 'ВЫКЛ')+' · окно на сервере',(698,582,370,38),'manage',managed)
         dialog.button(('ВКЛ' if console else 'ВЫКЛ')+' · отдельная консоль',(698,625,370,38),'console',console)
         dialog.button(('ВКЛ' if strict else 'ВЫКЛ')+' · строгая изоляция стран',(698,668,370,38),'strict',strict)
-        dialog.label('Окно 98304 / 196608 / 262144',698,716,MUTED,dialog.small)
-        dialog.label('При изменении модель перезагрузится.',698,738,MUTED,dialog.small)
+        dialog.label('Общее окно: вход + правила + ответ',698,716,MUTED,dialog.small)
+        dialog.label('В консоли показан реальный резерв ответа.',698,738,MUTED,dialog.small)
         dialog.notice_lines(760)
         dialog.button('Назад',(34,826,125,36),'cancel')
         dialog.button('Сохранить',(900,826,190,36),'save',True)

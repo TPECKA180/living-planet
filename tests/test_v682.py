@@ -58,7 +58,7 @@ class LocalExecutionTests(unittest.TestCase):
             self.assertEqual(runner.world.phase,'idle');self.assertFalse(runner.world.in_day);self.assertEqual(runner.world.chapter,1)
     def test_upgrade_enables_local_mode_without_resetting_user_limits(self):
         cfg=dict(runtime_patch='6.8',max_tokens=32768,context_window=98304,reflective_learning=False)
-        self.assertTrue(upgrade_config(cfg));self.assertTrue(cfg['local_execution']);self.assertTrue(cfg['local_chronicle']);self.assertEqual(cfg['max_tokens'],32768);self.assertFalse(cfg['reflective_learning'])
+        self.assertTrue(upgrade_config(cfg));self.assertTrue(cfg['local_execution']);self.assertTrue(cfg['local_chronicle']);self.assertEqual(cfg['max_tokens'],196608);self.assertFalse(cfg['reflective_learning'])
         cfg['local_chronicle']=False;self.assertFalse(upgrade_config(cfg));self.assertFalse(cfg['local_chronicle'])
 
 if __name__=='__main__':unittest.main()

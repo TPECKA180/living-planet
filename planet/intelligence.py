@@ -197,6 +197,9 @@ def action_schema(kinds,context=None):
             partners=[s['id'] for s in context['states'] if s['id']!=context.get('state')]
             if partners: args['properties']['partner']['enum']=partners
         if kind=='trade': args['properties']['price']['description']='Цена ОДНОЙ единицы; вся сумма=amount*price.'
+        if kind=='build' and context.get('construction',{}).get('projects'):
+            selector=dict(type='object',properties=dict(project_id=dict(type='string',enum=[p['project_id'] for p in context['construction']['projects']])),required=['project_id'],additionalProperties=False)
+            args=dict(anyOf=[selector,args])
         alternatives.append(dict(type='object',properties=dict(type=dict(type='string',enum=[kind]),args=args),required=['type','args'],additionalProperties=False))
     return dict(anyOf=alternatives)
 

@@ -200,7 +200,7 @@ class StabilityTests(unittest.TestCase):
             db.close()
             before=source.read_bytes(); new,store=WorldLibrary(root/'saves').import_legacy(source,'Продолжение6.2')
             self.assertEqual(before,source.read_bytes()); self.assertEqual(new.data()['states'],old['states']); self.assertEqual(new.pending_decisions,old['pending_decisions']); self.assertEqual(new.day,30)
-            self.assertEqual(new.data()['patch'],'7.5.0'); self.assertTrue(list((store.path.parent/'backups').glob('before-v7.5.0-*.sqlite3')))
+            self.assertEqual(new.data()['patch'],'7.5.1'); self.assertTrue(list((store.path.parent/'backups').glob('before-v7.5.1-*.sqlite3')))
 
 
 if __name__=='__main__': unittest.main()

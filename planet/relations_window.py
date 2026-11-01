@@ -46,7 +46,7 @@ class RelationsView:
         self.heading=pg.font.SysFont('segoeui',27,bold=True)
         self.tab=0; self.scroll=0; self.buttons=[]; self.max_scroll=0
         self.forecast=None; self.forecast_world=None
-        pg.display.set_caption(f'Живая планета v7.5.0 · Отношения · {world.state(sid).name}')
+        pg.display.set_caption(f'Живая планета v7.5.1 · Отношения · {world.state(sid).name}')
 
     def text(self,value,x,y,color=TEXT,font=None): self.screen.blit((font or self.font).render(str(value),True,color),(x,y))
     def box(self,rect,color=PANEL): pg.draw.rect(self.screen,color,rect,border_radius=10)

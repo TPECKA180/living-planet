@@ -1,6 +1,6 @@
 # Все параметры конфигурации
 
-Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 7.5.0; они не взяты с компьютера автора.
+Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 7.5.1; они не взяты с компьютера автора.
 
 | Ключ | Тип | По умолчанию |
 | --- | --- | --- |
@@ -11,8 +11,8 @@
 | api_key | str | "" |
 | timeout | int | 600 |
 | temperature | float | 0.7 |
-| context_window | int | 131072 |
-| max_tokens | int | 16384 |
+| context_window | int | 262144 |
+| max_tokens | int | 196608 |
 | input_tokens | int | 56000 |
 | context_retry_attempts | int | 8 |
 | decision_repair_attempts | int | 3 |
@@ -36,7 +36,7 @@
 | reflective_learning | bool | true |
 | local_execution | bool | true |
 | local_chronicle | bool | true |
-| runtime_patch | str | "7.5.0" |
+| runtime_patch | str | "7.5.1" |
 | response_max_bytes | int | 33554432 |
 | saves_directory | str | "saves" |
 | manager_every | int | 10 |
@@ -51,3 +51,5 @@
 ## Режимы
 
 `strict_state_isolation=true` требует нативного LM Studio API: выгрузка и загрузка чистого экземпляра между владельцами. `manage_model_context` управляет загрузкой вне строгого режима. Для стороннего OpenAI-совместимого сервера без этих методов оба параметра выключают; такой режим не обеспечивает серверную проверку выгрузки. `local_execution` и `local_chronicle` оставляют подготовку приказов и главы локальными. Отключение возвращает дополнительные запросы. `external_console` открывает отдельную консоль только в Windows. `response_max_bytes` ограничивает принимаемый ответ, а не контекст. Остальные архивные лимиты задают максимум истории, передаваемой в запрос, а не срок хранения сохранения.
+
+[Подробно о лимитах и памяти](LIMITS.md).

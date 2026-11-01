@@ -55,6 +55,9 @@ def prepare_locally(world,state,decision,config,own_context=None):
         if len(orders)>4:issue('economic_orders','Дополнительные казначейские приказы сверх4 не добавлены')
     if not isinstance(result.get('diplomacy'),list):result['diplomacy']=[];issue('diplomacy','Некорректный список сообщений не отправлен')
     if not isinstance(result.get('relation_reviews',{}),dict):result['relation_reviews']={};issue('relations','Некорректное досье не применяется')
+    if not isinstance(result.get('strategic_assessment',{}),dict):
+        result['unvalidated_strategic_assessment']=result.pop('strategic_assessment')
+        issue('strategy','Разбор не является объектом; конкретные приказы сохранены, прежняя стратегия не заменяется.')
     if result.get('strategic_assessment'):
         from .deliberation import validate_assessment
         try:validate_assessment(result,state,context)

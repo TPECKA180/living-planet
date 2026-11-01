@@ -16,7 +16,7 @@ def run():
     try:result=unittest.TextTestRunner(verbosity=0).run(unittest.defaultTestLoader.discover(str(ROOT/'tests')))
     finally:World.execute=original
     report=dict(tests=result.testsRun,passed=result.wasSuccessful(),registered_actions=len(PRICES),
-        missing_success=[name for name in PRICES if not counts[name]['success']])
+        missing_success=[name for name in PRICES if not counts[name]['success']],actions={name:dict(counts[name]) for name in sorted(PRICES)})
     print(json.dumps(report));return report
 
 if __name__=='__main__':

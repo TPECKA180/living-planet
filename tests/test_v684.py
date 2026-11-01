@@ -58,10 +58,10 @@ class InputContextTests(unittest.TestCase):
         source=dict(day=35,state=self.s.id,notes='Характер',stocks={},construction={'projects':[{'project_id':'p','cell':[1,1],'cost':{'money':200}}]},messages=[dict(day=2,text='Архив. '*1000) for _ in range(30)]+[latest])
         fitted=fit('Правила.',source,8192,2048)
         self.assertIn(latest,fitted['messages']);self.assertEqual(fitted['construction'],source['construction'])
-    def test_upgrade_sets_input_target_without_increasing_answer_limit(self):
+    def test_upgrade_restores_both_requested_budgets(self):
         cfg=dict(runtime_patch='6.8.3',max_tokens=8192,context_window=98304,local_execution=True,local_chronicle=True)
         self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['input_tokens'],56000)
-        self.assertEqual(cfg['max_tokens'],8192);self.assertEqual(cfg['context_window'],131072)
+        self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['context_window'],262144)
         cfg['input_tokens']=40000;self.assertFalse(upgrade_config(cfg));self.assertEqual(cfg['input_tokens'],40000)
     def decision(self,actions):return dict(thinking='Военная проверка.',notes=self.s.notes,plan=self.s.plan,diplomacy=[],actions=actions)
     def test_war_recruitment_template_creates_and_pays_for_real_army(self):

@@ -19,7 +19,7 @@ class MenuTests(unittest.TestCase):
     def test_create_load_and_edit_settings_without_tk(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
-            config=dict(saves_directory=str(root/'saves'),states=2,host='http://localhost:1234/v1',model='test',context_window=98304)
+            config=dict(saves_directory=str(root/'saves'),states=2,host='http://localhost:1234/v1',model='test',context_window=262144)
             with patch.object(Dialog,'events',drive('new')): first=choose_world(root,config)
             first[1].session_lock.close()
             with patch.object(Dialog,'events',drive('load')): second=choose_world(root,config)
@@ -27,8 +27,8 @@ class MenuTests(unittest.TestCase):
             second[1].session_lock.close()
             with patch.object(Dialog,'events',drive('save')): self.assertTrue(edit_settings(root,config))
             saved=json.loads((root/'config.json').read_text(encoding='utf-8'))
-            self.assertEqual(saved['context_window'],98304)
-        self.assertEqual(saved['max_tokens'],28000)
+            self.assertEqual(saved['context_window'],262144)
+        self.assertEqual(saved['max_tokens'],196608)
         __import__('pygame').quit()
 
     def test_cyrillic_field_input_and_selection(self):
