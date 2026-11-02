@@ -8,7 +8,7 @@ from .saves import WorldLibrary, WorldLock
 
 def choose_world(app_root,config,screenshot=None):
     app_root=Path(app_root)
-    dialog=Dialog('Живая планета · v7.5.2 · выбрать мир',(1120,820)); pg=dialog.pg
+    dialog=Dialog('Живая планета · v7.5.3 · выбрать мир',(1120,820)); pg=dialog.pg
     path=Path(config.get('saves_directory','saves'))
     if not path.is_absolute(): path=app_root/path
     dialog.field('directory','Папка всех миров · можно вставить путь Ctrl+V',str(path.resolve()),(34,108,850,36))

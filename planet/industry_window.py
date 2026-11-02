@@ -16,7 +16,7 @@ class IndustryView(RelationsView):
     def __init__(self,world,sid):
         super().__init__(world,sid); self.screen=pg.display.set_mode((1280,900),pg.RESIZABLE)
         self.cached_world=None; self.cache={}
-        pg.display.set_caption('Живая планета 7.5.2 · Расширенная экономика · '+world.state(sid).name)
+        pg.display.set_caption('Живая планета 7.5.3 · Расширенная экономика · '+world.state(sid).name)
     def draw(self):
         w=self.world; state=w.state(self.sid); width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
         if self.cached_world is not w: self.cache={}; self.cached_world=w

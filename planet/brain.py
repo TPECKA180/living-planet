@@ -9,6 +9,7 @@ import urllib.request
 from .engine import RuleError, PRICES
 from .isolation import StrictIsolation,checked_context
 from .brain_errors import IsolationError
+from .generation_recovery import GenerationStalled,unfinished_field,preserve_learning
 from .decision_format import decision_schema
 from .context import COMPACT_RULES, TINY_RULES, estimate, fit
 from .deliberation import DEEP_RULES,needed_reviews,validate_assessment,narrative_fields,supplement_schema
@@ -118,7 +119,10 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                                 recent=(recent+content)[-2000:]; repetition_check+=len(content)
                                 if repetition_check>=256 and self.config.get('detect_repetition',True):
                                     repetition_check=0
-                                    if repetitive_tail(recent): raise RepeatedOutput(recent)
+                                    if repetitive_tail(recent):
+                                        exc=RepeatedOutput(recent)
+                                        exc.field=unfinished_field(''.join(fragments))
+                                        raise exc
                             if choice.get('finish_reason'): finish=choice['finish_reason']; ended=True
                 if not ended: raise RuntimeError('Поток LM Studio оборвался до завершения ответа; ход не применён')
                 return dict(choices=[dict(message=dict(content=''.join(fragments)),finish_reason=finish or 'stop')],usage=usage)
@@ -237,7 +241,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             raise IsolationError('Владелец экземпляра модели не совпадает с участником запроса')
         window=min(window,self.context_limits.get(model,window))
         attempts=max(1,int(self.config.get('context_retry_attempts',8)))
-        repair=None;envelope_error=None
+        repair=None;envelope_error=None;repetitions=0
         for attempt in range(attempts):
             output=self.answer_budget(system,window,self.response_limits.get(model))
             actual_system=system
@@ -281,8 +285,13 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 self.emit('status','Ответ превышает защитный предел. Повторяем текущий запрос; черновик не применяется.')
                 continue
             except RepeatedOutput as exc:
-                repair=dict(error=str(exc),previous_response=exc.preview,instruction='Не повторяй абзацы. Досье:2–4 предложения, разбор:конкретные краткие выводы, один полный JSON.')
-                self.emit('status','Обнаружено зацикливание текста. Повторяем только текущий запрос, не увеличивая бессмысленный повтор и не применяя черновик.')
+                repetitions+=1
+                field=getattr(exc,'field',None)
+                response_schema,preserved=preserve_learning(response_schema,context,field)
+                repair=dict(error='В предыдущем ответе повторялся текст; зацикленный черновик намеренно не включён.',field=field,
+                    instruction='Верни один полный JSON. Не переписывай поля Baseline/Status/Start/Due/Horizon в текстовые заметки. Не копируй эксперимент целиком в hypothesis/next_action. Сохрани конкретные приказы и стратегию. '+
+                    (f'{field}=null: сохранить прежние данные обучения без изменений.' if preserved else 'Устрани повтор; прежние notes/plan/learning_review можно сохранить через null, если это допускает контракт.'))
+                self.emit('status','Зацикленный текст исключён из уточнения. '+(f'{field}=null сохранит прежнее обучение; ' if preserved else '')+'вход, выход и контекст не уменьшены; неполное решение не применяется.')
                 continue
             except RuntimeError as exc:
                 if 'stream_options' in payload and 'stream_options' in str(exc).lower():
@@ -333,6 +342,8 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 repair=dict(error=str(exc),previous_response=content[-12000:])
                 self.emit('status','Ответ не является корректным JSON. Уточняем формат и повторяем запрос; день не пропущен.')
                 continue
+        if repetitions:
+            raise GenerationStalled('Модель повторяет текст после уточнений. Наблюдение остановлено без пропуска дня и без применения черновика; прежняя память сохранена. Повтор можно запустить вручную. Лимиты контекста, ввода и вывода не уменьшены.')
         if envelope_error:raise AutomaticRetry(envelope_error)
         if repair: raise AutomaticRetry('Ответы всё ещё не являются JSON после уточнений. Автоматический повтор через 5 секунд; ход и готовые решения сохранены.')
         raise AutomaticRetry('Сервер всё ещё сообщает о переполнении. Контекст уже сокращён; автоматический повтор через 5 секунд, ход сохранён.')
@@ -399,7 +410,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                             result.setdefault('action_validation_warnings',[]).append(str(exc))
                             self.emit('status','Есть замечание к отдельному приказу: '+str(exc)+'. Сохраняем готовый разбор; приказы проверяются по порядку обычным движком без повторной генерации всего решения.')
                     self.validate_decision(result,state,context)
-                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.2'
+                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.3'
                     deep_complete=False
                     if self.config.get('deep_strategy',False):
                         try: validate_assessment(result,state,base_context); deep_complete=True
@@ -411,12 +422,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         try: validate_assessment(result,state,base_context)
                         except ValueError as exc: deep_complete=False; result['strategic_review_required']=str(exc)
                     if deep_complete: result['relation_review_attempted']=context['day']; result['strategic_review_completed']=context['day']
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.1','7.5.2'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3'):
                         try: result=self.compile_construction(context,result)
                         except ValueError as exc:
                             result['construction_review_required']=str(exc)
                             self.emit('status','Основной ответ сохранится; уточним только стройку: '+str(exc))
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.1','7.5.2'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3'):
                         try: result=self.compile_economy(state,context,result)
                         except (ValueError,TypeError,KeyError) as exc:
                             result['economic_review_required']=str(exc)
