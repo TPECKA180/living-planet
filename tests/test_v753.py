@@ -40,4 +40,4 @@ class RecoveryTests(unittest.TestCase):
     def test_recent_config_migration_changes_only_patch(self):
         for v in ('7.5.1','7.5.2','7.5.3'):
             cfg=dict(runtime_patch=v,input_tokens=56000,max_tokens=196608,context_window=262144,temperature=.7)
-            old=copy.deepcopy(cfg);upgrade_config(cfg);old['runtime_patch']='7.5.3';self.assertEqual(cfg,old)
+            old=copy.deepcopy(cfg);upgrade_config(cfg);old['runtime_patch']='7.5.4';self.assertEqual(cfg,old)

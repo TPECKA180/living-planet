@@ -73,12 +73,12 @@ def write_lines(path,items,cache=None):
 def backup_connection(source,folder,snapshot_text):
     digest=hashlib.sha256(snapshot_text.encode('utf-8')).hexdigest()[:12]
     folder=Path(folder)/'backups'; folder.mkdir(exist_ok=True)
-    path=folder/f'before-v7.5.3-{digest}.sqlite3'
+    path=folder/f'before-v7.5.4-{digest}.sqlite3'
     if not path.exists():
         temporary=path.with_suffix('.sqlite3.tmp')
         with closing(sqlite3.connect(temporary)) as destination: source.backup(destination)
         temporary.replace(path)
-    write_json(Path(folder).parent/'migration.json',dict(from_version=json.loads(snapshot_text).get('version',1),to_version=6,to_patch='7.5.3',
+    write_json(Path(folder).parent/'migration.json',dict(from_version=json.loads(snapshot_text).get('version',1),to_version=6,to_patch='7.5.4',
                time=now(),backup=str(path.name),day=json.loads(snapshot_text)['day'],characters_preserved=True,
                note='Новые правила применяются к следующим действиям. Ресурсы, карта, характеры и готовые решения не сбрасываются.'))
     return path
@@ -92,7 +92,7 @@ def _export_world(folder,world,snapshot,settings,cache=None):
     folder=Path(folder)
     manifest_path=folder/'manifest.json'
     manifest=json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else dict(name=folder.name,created_at=now())
-    manifest.update(version=6,patch='7.5.3',map_mode=getattr(world,'map_mode','normal'),seed=world.seed,updated_at=now(),day=world.day,completed_days=world.day-int(world.in_day),phase=world.phase,cursor=world.cursor,size=world.size,states=len(world.states))
+    manifest.update(version=6,patch='7.5.4',map_mode=getattr(world,'map_mode','normal'),seed=world.seed,updated_at=now(),day=world.day,completed_days=world.day-int(world.in_day),phase=world.phase,cursor=world.cursor,size=world.size,states=len(world.states))
     write_json(folder/'world.json',snapshot,cache=cache)
     write_lines(folder/'chronicle.jsonl',world.events,cache=cache)
     write_lines(folder/'messages.jsonl',world.messages,cache=cache)

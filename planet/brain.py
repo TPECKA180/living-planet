@@ -410,7 +410,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                             result.setdefault('action_validation_warnings',[]).append(str(exc))
                             self.emit('status','Есть замечание к отдельному приказу: '+str(exc)+'. Сохраняем готовый разбор; приказы проверяются по порядку обычным движком без повторной генерации всего решения.')
                     self.validate_decision(result,state,context)
-                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.3'
+                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.4'
                     deep_complete=False
                     if self.config.get('deep_strategy',False):
                         try: validate_assessment(result,state,base_context); deep_complete=True
@@ -422,12 +422,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         try: validate_assessment(result,state,base_context)
                         except ValueError as exc: deep_complete=False; result['strategic_review_required']=str(exc)
                     if deep_complete: result['relation_review_attempted']=context['day']; result['strategic_review_completed']=context['day']
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4'):
                         try: result=self.compile_construction(context,result)
                         except ValueError as exc:
                             result['construction_review_required']=str(exc)
                             self.emit('status','Основной ответ сохранится; уточним только стройку: '+str(exc))
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4'):
                         try: result=self.compile_economy(state,context,result)
                         except (ValueError,TypeError,KeyError) as exc:
                             result['economic_review_required']=str(exc)
