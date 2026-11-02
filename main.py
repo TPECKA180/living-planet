@@ -149,12 +149,12 @@ def settings(config):
 class App:
     def __init__(self,world,store,config):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v7.5.1 · лаборатория миров')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v7.5.2 · лаборатория миров')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
         self.font=pg.font.SysFont('segoeui',17); self.small=pg.font.SysFont('segoeui',14)
         self.title=pg.font.SysFont('segoeui',30,bold=True); self.medium=pg.font.SysFont('segoeui',21,bold=True)
         self.world=World.restore(world.data()); self.runner=Runner(world,store,config); self.config=config
-        self.selected=0; self.tab=0; self.scroll=0; self.running=False; self.target_day=None
+        self.selected=0; self.tab=0; self.scroll=0; self.running=False; self.target_day=None;self.pause_reason=''
         self.status=f'Завершено дней: {world.day-int(world.in_day)}. '+('Продолжим сохранённый общий ход.' if world.in_day else 'Мир готов.'); self.error=''; self.zoom=1.; self.pan=[0.,0.]
         self.drag=None; self.tile=None; self.buttons=[]; self.map_dirty=True; self.map_surface=None
         self.switch_requested=False; self.unit_markers=[]
@@ -296,7 +296,7 @@ class App:
     def draw(self):
         pg=self.pg; width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('7.5.1  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
+        self.text('7.5.2  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -575,6 +575,38 @@ class App:
                 self.wrapped(text,overlay.x+14,overlay.y+10,overlay.width-28,self.small); break
         pg.display.flip()
 
+    def record_observation(self,reason):
+        # Local controller history only; never model prompts or credentials.
+        row=dict(time=time.time(),day=self.world.day,phase=self.world.phase,mode='observe' if self.running and self.target_day is None else 'single_day' if self.running else 'paused',reason=reason)
+        try:
+            with (self.runner.store.path.parent/'observation.jsonl').open('a',encoding='utf-8') as stream:stream.write(json.dumps(row,ensure_ascii=False)+'\n')
+        except OSError:pass
+
+    def pause_observation(self,reason):
+        self.running=False;self.target_day=None;self.pause_reason=reason;self.status=reason
+        self.record_observation(reason)
+
+    def worker_message(self,kind,value):
+        if kind=='world':
+            self.error=''
+            self.world=World.restore(value);self.map_dirty=True;self.forecasts={};self.view_positions={};self.strategy_cache={};self.construction_cache={};self.preview_key=None;self.activity=None
+            self.status=f'Общий день {self.world.day} · '+(f'решений {len(self.world.pending_decisions)}/{len(self.world.states)}' if self.world.phase=='planning' else 'решения собраны' if self.world.phase=='resolution' else 'действия применены' if self.world.in_day else 'завершён')
+            if self.target_day and self.world.day>=self.target_day and not self.world.in_day:self.pause_observation('Пауза: выбранный одиночный день завершён.')
+            elif not self.running and self.pause_reason:self.status=self.pause_reason
+        elif kind=='status':
+            if self.running or not self.pause_reason:self.status=value
+        elif kind=='activity':self.activity=value
+        elif kind=='retry':
+            if self.running or not self.pause_reason:self.status=value
+            self.retry_after=time.monotonic()+5;self.error=''
+        elif kind=='error':
+            self.error=value
+            if self.running and self.target_day is None:
+                self.status='Ошибка шага; наблюдение повторит его через5с. '+str(value);self.retry_after=time.monotonic()+5
+                self.record_observation('Ошибка шага: автоматический повтор, день не пропущен.')
+            else:self.pause_observation('Пауза после ошибки шага; подробности в сообщении об ошибке.')
+        elif kind=='done':self.runner.busy=False
+
     def action(self,action):
         if action in ('run','day') and not (action=='run' and self.running):
             if not self.config.get('model') and not all(self.config.get('state_models',{}).get(s.id) for s in self.world.states if not s.eliminated):
@@ -582,21 +614,22 @@ class App:
         if action.startswith('bottom:'):
             self.chronicle_tab=int(action.split(':')[1]);self.learning_scroll=0;self.history_scroll=0;return
         if action=='run':
-            self.running=not self.running; self.target_day=None
-            if self.running: self.error=''
+            if self.running:self.pause_observation('Пауза: нажата кнопка наблюдения / пробел.')
+            else:
+                self.running=True;self.target_day=None;self.pause_reason='';self.error='';self.status='Наблюдение включено.';self.record_observation('Наблюдение включено.')
         elif action=='day':
             self.target_day=self.world.day if self.world.in_day else self.world.day+1
-            self.running=True; self.error=''
+            self.running=True;self.pause_reason='';self.error='';self.status='Выбран одиночный день; затем пауза.';self.record_observation(self.status)
         elif action=='settings':
-            if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
-            self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
+            if self.runner.busy:self.pause_observation('Пауза для настроек: текущий ответ будет сохранён.');return
+            self.pause_observation('Пауза: открыты настройки LM Studio.');old_size=self.screen.get_size();changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v7.5.1 · лаборатория миров')
+            self.pg.display.set_caption('Живая планета · v7.5.2 · лаборатория миров')
             if changed:
                 enabled=self.config.get('external_console',True)
                 if not enabled: self.runner.console.close()
                 self.runner.console.enabled=enabled
-            self.status='Настройки сохранены. Можно продолжить.' if changed else 'Настройки закрыты.'
+            self.pause_reason='Пауза: настройки сохранены. Нажмите «Наблюдать», чтобы продолжить.' if changed else 'Пауза: настройки закрыты. Нажмите «Наблюдать», чтобы продолжить.';self.status=self.pause_reason
         elif action=='help':
             from planet.configuration import open_help
             open_help(ROOT);self.status='Открыта полная справка: подключение, механики и решение проблем.'
@@ -606,7 +639,7 @@ class App:
             path.write_text('\n'.join(f"День {e['day']} · {e['text']}" for e in self.world.events),encoding='utf-8')
             self.status='Хроника сохранена в папку текущего мира'
         elif action=='worlds':
-            self.running=False; self.switch_requested=True
+            self.pause_observation('Пауза: выбран переход к списку миров.');self.switch_requested=True
             if self.runner.busy: self.status='Сохраняем текущий ответ перед выбором мира…'
         elif action=='industry': self.open_industry()
         elif action=='relations': self.open_relations()
@@ -640,6 +673,7 @@ class App:
             pg.display.flip();clock.tick(30)
 
     def close(self):
+        self.record_observation('Окно игры закрывается.')
         self.runner.console.close()
         for child in list(self.relation_windows.values())+list(self.industry_windows.values()):
             if child.poll() is None:child.terminate()
@@ -651,7 +685,7 @@ class App:
             except Exception as exc:
                 from planet.diagnostics import record
                 record(ROOT/'logs',exc,'interface')
-                self.running=False;self.target_day=None
+                self.pause_observation('Пауза: ошибка интерфейса; требуется восстановить окно.')
                 self.screen.set_clip(None)
                 self.atlas.scaled.clear();self.atlas.scaled_bytes=0
                 self.text_layout.clear()
@@ -663,7 +697,7 @@ class App:
             self.zoom=1;self.pan=[0.,0.];self.tile=None;self.drag=None
             self.map_dirty=True;self.forecasts={};self.view_positions={}
             self.strategy_cache={};self.construction_cache={};self.preview_key=None
-            self.buttons=[];self.error='Интерфейс восстановлен. Продолжите вручную.'
+            self.buttons=[];self.error='Интерфейс восстановлен. Продолжите вручную.';self.pause_reason=self.error
 
     def _loop(self,screenshot=None):
         pg=self.pg; clock=pg.time.Clock(); opened=True
@@ -671,15 +705,7 @@ class App:
         while opened:
             while not self.runner.messages.empty():
                 kind,value=self.runner.messages.get()
-                if kind=='world':
-                    self.world=World.restore(value); self.map_dirty=True; self.forecasts={}; self.view_positions={}; self.strategy_cache={}; self.construction_cache={}; self.preview_key=None; self.activity=None
-                    self.status=f'Общий день {self.world.day} · '+(f'решений {len(self.world.pending_decisions)}/{len(self.world.states)}' if self.world.phase=='planning' else 'решения собраны' if self.world.phase=='resolution' else 'действия применены' if self.world.in_day else 'завершён')
-                    if self.target_day and self.world.day>=self.target_day and not self.world.in_day: self.running=False; self.target_day=None
-                elif kind=='status': self.status=value
-                elif kind=='activity': self.activity=value
-                elif kind=='retry': self.status=value; self.retry_after=time.monotonic()+5; self.error=''
-                elif kind=='error': self.error=value; self.status='Ошибка LM Studio / решения'; self.running=False
-                elif kind=='done': self.runner.busy=False
+                self.worker_message(kind,value)
             for event in pg.event.get():
                 if event.type==pg.QUIT: opened=False
                 elif event.type==pg.VIDEORESIZE:
