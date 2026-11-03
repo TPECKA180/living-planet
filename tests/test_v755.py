@@ -4,6 +4,7 @@ from planet.brain import Brain,RULES
 from planet.context import ContextCapacityError
 from planet.generation_recovery import GenerationStalled
 from planet.runtime_config import upgrade_config
+from planet.context import fit
 
 
 def answer(text='{"ok":true}',finish='stop'):
@@ -11,6 +12,18 @@ def answer(text='{"ok":true}',finish='stop'):
 
 
 class OutputCeilingTests(unittest.TestCase):
+    def test_server_validates_conservative_overflow_without_losing_current_facts(self):
+        source=dict(stocks={'money':1},military={'current_forces':'X'*200000})
+        with self.assertRaises(ContextCapacityError):fit('rules',source,100000,0)
+        packed=fit('rules',source,100000,0,allow_estimated_overflow=True)
+        self.assertEqual(packed['military'],source['military']);self.assertGreater(packed['context_info']['estimated_overflow_tokens'],0)
+
+    def test_real_server_rejection_of_estimated_overflow_does_not_loop(self):
+        brain=Brain(dict(model='m',stream=True,context_window=110755,max_tokens=196608))
+        packed=dict(context_info=dict(estimated_input_tokens=111000,trimmed={},estimated_overflow_tokens=1000))
+        with patch.object(brain,'fit_context',return_value=packed),patch.object(brain,'stream_request',side_effect=RuntimeError('context length exceeded')) as send:
+            with self.assertRaises(GenerationStalled):brain.complete('JSON',{},'m')
+        self.assertEqual(send.call_count,1)
     def test_ceiling_is_sent_without_preallocating_or_halving_input(self):
         config=dict(model='m',stream=True,context_window=110755,input_tokens=56000,max_tokens=196608)
         before=copy.deepcopy(config);brain=Brain(config);brain.capacity_signature=('unused',)

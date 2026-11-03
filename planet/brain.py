@@ -223,7 +223,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=int(self.config.get('input_tokens',56000)))
         except ContextCapacityError:
             # 28000 is the desired user-data budget, not permission to erase facts.
-            result=fit(system,context,window,output,bytes_per_token=ratio)
+            # A byte estimate is not a tokenizer. If the configured factual
+            # budget fits this window, let LM Studio validate a protected core
+            # that only the estimate considers too large; never delete facts
+            # or halve the response ceiling to satisfy this heuristic.
+            server_check=(output==0 and window>=estimate(system)+int(self.config.get('input_tokens',56000))+2048)
+            result=fit(system,context,window,output,bytes_per_token=ratio,allow_estimated_overflow=server_check)
             result['context_info']['requested_user_input_tokens']=int(self.config.get('input_tokens',56000))
             result['context_info']['expanded_for_actionable_data']=True
             return result
@@ -301,6 +306,8 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     self.emit('status','Сервер не принял JSON-схему дополнения. Используем уточнение с обычной проверкой структуры.')
                     continue
                 if not context_error(exc): self.emit('error',str(exc)); raise
+                if fitted['context_info'].get('estimated_overflow_tokens'):
+                    raise GenerationStalled('LM Studio подтвердил, что вход не помещается в загруженное окно. Предел ответа не уменьшен; повтор того же запроса остановлен. '+str(exc)) from exc
                 self.token_ratios.pop(model,None); self.current_token_ratio=2
                 window=max(2048,int(window*.55)); self.context_limits[model]=window
                 self.emit('status',f'Переполнение: сокращаем запрос до бюджета {window} токенов и повторяем тот же ход.')
@@ -564,6 +571,7 @@ trust — целое -100..100; stance — neutral/friend/rival/enemy; trade_pol
             self.emit('status','Ответ для досье некорректен. Прежняя оценка сохранена; игровой ход продолжится.')
         finally: self.active=previous
         return decision
+  
 
     def manager(self,world):
         self.bind_actor('__manager__')

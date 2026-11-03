@@ -42,7 +42,7 @@ class ContextCapacityError(RuntimeError):
     """Never send an identity-only prompt after throwing away actionable facts."""
 
 
-def fit(system,source,window,output,bytes_per_token=2,input_budget=None):
+def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_estimated_overflow=False):
     from .prompt_packing import shared_schema,grouped_map
     if isinstance(source.get('own_context'),dict):
         source={**source['own_context'],**{k:v for k,v in source.items() if k!='own_context'}}
@@ -105,9 +105,10 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None):
                         context[key][name]=excerpt(text,limit)
                 refresh(key)
         cuts['text_limit']=limit
-    if used()>budget:
+    if used()>budget and not allow_estimated_overflow:
         raise ContextCapacityError(f'Контекст не вмещает текущие проекты, войска, цены и правила: требуется примерно {used()} токенов входа с инструкциями, доступно {budget}. Данные действий НЕ удалены; нужен больший контекст или меньший резерв ответа.')
     context['context_info']=dict(window=window,estimated_input_tokens=used(),reserved_output=output,trimmed=cuts,
         requested_user_input_tokens=input_budget,packing=packing,actionable_data_preserved=True,
         estimate_method=f'UTF-8 bytes / {bytes_per_token:g}; conservative calibration; adaptive retry on server overflow')
+    if used()>budget:context['context_info']['estimated_overflow_tokens']=used()-budget
     return context
