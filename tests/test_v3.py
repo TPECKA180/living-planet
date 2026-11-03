@@ -78,7 +78,7 @@ class RecoveryTests(unittest.TestCase):
             with self.assertRaises(AutomaticRetry): brain.complete(RULES,dict(notes='Память'),'test')
         self.assertLess(brain.context_limits['test'],32768)
 
-    def test_cut_off_generation_retries_with_more_output_and_does_not_apply_partial_json(self):
+    def test_cut_off_generation_stops_without_replaying_partial_json(self):
         brain=Brain(dict(model='test',context_window=98304,max_tokens=32768,stream=False))
         brain.capacity_signature=(None,98304,None,32768,56000);brain.response_limits['test']=8192
         payloads=[]
@@ -86,8 +86,9 @@ class RecoveryTests(unittest.TestCase):
             payloads.append(payload)
             if len(payloads)==1: return dict(choices=[dict(message=dict(content='{"thinking":'),finish_reason='length')])
             return dict(choices=[dict(message=dict(content=json.dumps(answer(),ensure_ascii=False)),finish_reason='stop')])
-        with patch.object(brain,'request',side_effect=request): result=brain.complete(RULES,dict(notes='Память'),'test')
-        self.assertEqual(result,answer());self.assertEqual(payloads[1]['max_tokens'],16384)
+        with patch.object(brain,'request',side_effect=request):
+            with self.assertRaises(__import__('planet.generation_recovery',fromlist=['GenerationStalled']).GenerationStalled):brain.complete(RULES,dict(notes='Память'),'test')
+        self.assertEqual(len(payloads),1);self.assertEqual(payloads[0]['max_tokens'],110000)
 
     def test_non_context_http_error_is_not_misreported_as_overflow(self):
         self.assertFalse(context_error('HTTP 401 Unauthorized'))
@@ -103,7 +104,7 @@ class RecoveryTests(unittest.TestCase):
         world=World(size=24,count=2)
         # 6.8.4 refuses to erase the actual decision data to fit an unusable window.
         with patch.object(brain,'request',side_effect=request):
-            with self.assertRaises(AutomaticRetry):brain.complete(RULES,world.context(world.states[0]),'test')
+            with self.assertRaises(__import__('planet.generation_recovery',fromlist=['GenerationStalled']).GenerationStalled):brain.complete(RULES,world.context(world.states[0]),'test')
         self.assertEqual(payloads,[])
 
 

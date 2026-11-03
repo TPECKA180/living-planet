@@ -47,7 +47,7 @@ class InputContextTests(unittest.TestCase):
         for key in ('construction','military','stocks','units','technology_catalog','action_sites','mobility','economy','states','relations','commerce','notes','plan'):
             self.assertEqual(fitted[key],before[key],key)
         self.assertIn(latest,fitted['messages']);self.assertIn('output_contract',fitted)
-        self.assertLess(sum(estimate(m['content']) for m in payload['messages'])+payload['max_tokens'],83066)
+        self.assertLess(sum(estimate(m['content']) for m in payload['messages']),83066);self.assertEqual(payload['max_tokens'],110000)
         context.pop('_response_schema');self.assertEqual(context,before)
     def test_insufficient_window_never_falls_back_to_identity_only(self):
         source=self.w.context(self.s);before=copy.deepcopy(source)

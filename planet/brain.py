@@ -243,15 +243,16 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         attempts=max(1,int(self.config.get('context_retry_attempts',8)))
         repair=None;envelope_error=None;repetitions=0
         for attempt in range(attempts):
-            output=self.answer_budget(system,window,self.response_limits.get(model))
+            # max_tokens is a server-side generation ceiling, not an allocation
+            # that must evict the factual input before a request is even sent.
+            # LM Studio accepts a ceiling above the remaining context capacity.
+            output=max(110000,int(self.config.get('max_tokens',196608)))
             actual_system=system
             desired_input=max(1024,int(self.config.get('input_tokens',56000)))
-            # The same context window holds system + user data + model output.
-            # Reserve the requested factual input BEFORE a generous answer cap.
-            if system==RULES and estimate(system)+min(desired_input,window//2)+1024>window:
-                actual_system=COMPACT_RULES if estimate(COMPACT_RULES)+1024<window else TINY_RULES
-            output=min(output,max(256,window-estimate(actual_system)-desired_input-2048))
-            system_budget=max(256,window-output-2048)
+            # Retain the existing input budget and the actual server window.
+            # Packing the entire output ceiling here caused reserve-halving
+            # and length-retry loops, even for answers needing only ~5000 tokens.
+            system_budget=max(256,window-2048)
             if estimate(system)>system_budget:
                 actual_system=(COMPACT_RULES if estimate(COMPACT_RULES)<=system_budget else TINY_RULES) if system==RULES else 'Ответь только JSON на русском. Выполни задачу из task; сохрани ключи и технические значения.'
                 if system!=RULES: payload_context=dict(context,task=system)
@@ -263,14 +264,11 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 payload_context=dict(payload_context,format_correction=repair)
                 actual_system+='\nПредыдущий ответ не разобран как JSON. Исправь формат по format_correction. Верни один JSON-объект без Markdown, рассуждений вне объекта и постороннего текста.'
             from .context import ContextCapacityError
-            try:fitted=self.fit_context(actual_system,payload_context,window,output)
+            try:fitted=self.fit_context(actual_system,payload_context,window,0)
             except ContextCapacityError as exc:
-                if output>1024:
-                    self.response_limits[model]=max(1024,output//2)
-                    self.emit('status','Сохраняем данные для действий; уменьшаем резерв ответа и повторяем подготовку запроса.')
-                    continue
-                raise AutomaticRetry(str(exc)) from exc
-            self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, вход до {desired_input} + правила, ответ до {output} из запрошенных {int(self.config.get("max_tokens",196608))} токенов · попытка {attempt+1}',window=window,requested_output=int(self.config.get('max_tokens',196608)),actual_output=output,estimated_input=fitted['context_info']['estimated_input_tokens'])
+                raise GenerationStalled('Входные данные не помещаются в подтверждённое окно LM Studio. Предел ответа не уменьшен; автоматическая регенерация остановлена без пропуска дня. '+str(exc)) from exc
+            fitted['context_info']['server_output_limit']=output
+            self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, вход до {desired_input} + правила, предел ответа {output} токенов (доступная длина зависит от оставшегося окна) · попытка {attempt+1}',window=window,requested_output=output,actual_output=output,estimated_input=fitted['context_info']['estimated_input_tokens'])
             if fitted['context_info']['trimmed']:
                 self.emit('status','Контекст сокращён только для запроса: '+json.dumps(fitted['context_info']['trimmed'],ensure_ascii=False))
             payload=dict(model=model,messages=[dict(role='system',content=actual_system),
@@ -322,14 +320,13 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 self.token_ratios[model]=min(self.token_ratios.get(model,3.5),ratio)
             choice=response['choices'][0]
             if choice.get('finish_reason')=='length':
-                larger=self.answer_budget(actual_system,window,min(output*2,int(self.config.get('max_tokens',196608))))
-                if larger>output:
-                    self.response_limits[model]=larger
-                    self.emit('status',f'Ответ обрезан. Выделяем до {larger} токенов ответа, сохраняем входной бюджет и повторяем без применения неполного решения.')
-                    continue
-                repair=dict(error='Ответ достиг предельного бюджета; неполный JSON не применён.',instruction='Верни полный JSON компактнее, без повторов. Сохрани все обязательные поля, конкретные приказы и собственную стратегию. notes/plan=null допустимы для сохранения прежних. Не повторяй весь прежний ответ.')
-                self.emit('status','Достигнут доступный предел ответа. Уточняем компактную форму JSON с тем же входным бюджетом; мир не изменён.')
-                continue
+                # Some servers label a complete JSON object as length. The
+                # normal decision validators still run before any action.
+                try:
+                    complete=parse_json(choice['message'].get('content',''))
+                    if isinstance(complete,dict):return complete
+                except (ValueError,TypeError):pass
+                raise GenerationStalled(f'LM Studio остановил ответ по длине: запрошено {output}, окно {window}, фактический вход {prompt_tokens or "не сообщён"}. Неполный JSON не применён. Повтор того же запроса автоматически НЕ запускается; для более длинного ответа требуется большее загруженное окно или устранение зацикливания модели. День и готовые решения сохранены.')
             content=choice['message'].get('content')
             if not isinstance(content,str):
                 repair=dict(error='Модель вернула пустой/нетекстовый ответ',instruction='Верни полный JSON-объект в content, без вызовов инструментов.')
@@ -410,7 +407,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                             result.setdefault('action_validation_warnings',[]).append(str(exc))
                             self.emit('status','Есть замечание к отдельному приказу: '+str(exc)+'. Сохраняем готовый разбор; приказы проверяются по порядку обычным движком без повторной генерации всего решения.')
                     self.validate_decision(result,state,context)
-                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.4'
+                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.5'
                     deep_complete=False
                     if self.config.get('deep_strategy',False):
                         try: validate_assessment(result,state,base_context); deep_complete=True
@@ -422,12 +419,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         try: validate_assessment(result,state,base_context)
                         except ValueError as exc: deep_complete=False; result['strategic_review_required']=str(exc)
                     if deep_complete: result['relation_review_attempted']=context['day']; result['strategic_review_completed']=context['day']
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4','7.5.5'):
                         try: result=self.compile_construction(context,result)
                         except ValueError as exc:
                             result['construction_review_required']=str(exc)
                             self.emit('status','Основной ответ сохранится; уточним только стройку: '+str(exc))
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4','7.5.5'):
                         try: result=self.compile_economy(state,context,result)
                         except (ValueError,TypeError,KeyError) as exc:
                             result['economic_review_required']=str(exc)

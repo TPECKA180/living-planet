@@ -154,7 +154,7 @@ class RecoveryAndStrategyTests(Fixture):
         with patch.object(brain,'stream_request',side_effect=response): result=brain.think(self.s,self.w.context(self.s))
         self.assertEqual(result,decision()); self.assertIn('format_correction',payloads[1]['messages'][1]['content'])
     def test_permanent_bad_json_becomes_retry_without_applying_turn(self):
-        brain=Brain(dict(model='test',context_window=16384,context_retry_attempts=2))
+        brain=Brain(dict(model='test',context_window=65536,context_retry_attempts=2))
         response=dict(choices=[dict(message=dict(content='не JSON'),finish_reason='stop')]); before=self.w.data()
         with patch.object(brain,'stream_request',return_value=response):
             with self.assertRaises(AutomaticRetry): brain.think(self.s,self.w.context(self.s))
