@@ -189,7 +189,7 @@ def action_schema(kinds,context=None):
     alternatives=[]
     for kind in kinds:
         props,required=CONTRACTS.get(kind,({},[]))
-        args=dict(type='object',properties=copy.deepcopy(props),required=list(required),additionalProperties=True)
+        args=dict(type='object',properties={key:copy.deepcopy(value) for key,value in props.items()},required=list(required),additionalProperties=True)
         if kind=='research' and context.get('technology_catalog'):
             choices=[t['id'] for t in context['technology_catalog'] if not t.get('researched')]
             if choices: args['properties']['tech']['enum']=choices

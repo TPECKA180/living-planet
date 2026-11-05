@@ -75,7 +75,7 @@ class Planning(MilitaryPlanning):
             if offer['seller']==state.id:
                 key=(offer['partner'],offer['resource']); known_exports[key]=known_exports.get(key,0)+offer['amount']
         settlements=min(10,int(state.stocks['money']//50),int(state.stocks['food']//30),int(state.stocks['resource']//10),sum(not self.cell(p).population and self.cell(p).terrain!='water' and not self.cell(p).radiation for p in own))
-        if sum(self.cell(p).population for p in own)<2: settlements=0
+        if self.era_for(state)<2 and sum(self.cell(p).population for p in own)<2: settlements=0
         lab=any(self.cell(p).building=='lab' and self.cell(p).terrain=='science' for p in own)
         if self.era_for(state)==2: lab=lab or any(self.cell(p).building in ('university','engineering_institute','physics_lab','computing_center','radiation_station') for p in own)
         research=[t['id'] for t in self.research_catalog(state) if t['available'] and lab and all(state.stocks.get(key,0)>=value for key,value in t.get('cost',{key:t[key] for key in ('money','science','matter')}).items())]

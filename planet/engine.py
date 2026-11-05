@@ -90,7 +90,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
         self.messages=[]
         self.trade_offers=[]
         self.next_offer=1
-        self.patch='7.5.5'
+        self.patch='7.5.6'
         self.supply_pacts=[]; self.next_supply=1
         self.exchanges=[]; self.next_exchange=1; self.settlements=[]; self.next_receipt=1
         self.rules_version=6
@@ -201,6 +201,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
                     else:
                         c.population=0
                         self.log('famine', f'{s.name}: житель в {p} погиб от нехватки запасов.')
+        for s in self.states: self.passive_population_growth(s)
         self.pay_tribute(gross_money)
         for unit in list(self.units):
             if self.cell(unit['cell']).radiation>0:
@@ -307,7 +308,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
             if type(amount) is not int or not 1<=amount<=10: raise RuleError('Количество жителей: 1–10')
             if c.population or c.terrain=='water' or c.radiation: raise RuleError('Начальная клетка должна быть свободна от жителей, воды и радиации')
             own=self.positions(s.id)
-            if sum(self.cell(q).population for q in own)<2: raise RuleError('Для роста нужны минимум два существующих жителя')
+            if self.era_for(s)<2 and sum(self.cell(q).population for q in own)<2: raise RuleError('Для роста нужны минимум два существующих жителя')
             free=sorted([q for q in own if not self.cell(q).population and self.cell(q).terrain!='water' and not self.cell(q).radiation],key=lambda q:abs(q[0]-p[0])+abs(q[1]-p[1]))
             price=50*amount
             if len(free)<amount or s.stocks['money']<price or s.stocks['food']<30*amount or s.stocks['resource']<10*amount:
@@ -444,7 +445,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
                     objective='Стать сильнейшим государством: превосходство в территории, населении, экономике и армии. Дипломатия, экономическое давление и выгодные войны — инструменты развития.',
                     technology_catalog=self.research_catalog(s),strategy=self.strategic_context(s),strategic_brief=self.decision_brief(s,forecast),construction=self.construction_context(s,forecast),politics=self.political_context(s),previous_assessment=copy.deepcopy(s.strategic_assessment),previous_outcome=copy.deepcopy(s.decision_outcome),previous_construction_review=copy.deepcopy(s.construction_review),previous_economic_review=copy.deepcopy(s.economic_review),matter_uses='Продвинутые исследования; reinforce после military_medicine; convert после alchemy; fortify после fortification; improve_building после aether_forging.',
                     size=self.size,state=s.id,private_owner=s.id,stocks={k:s.stocks.get(k,0) for k in self.resource_keys(s)},notes=s.notes,plan=s.plan,learning=self.learning_context(s.id),
-                    rules=dict(version=6,patch='7.5.5',action_prices=copy.deepcopy(PRICES),effective_unit_price=self.unit_price(s),step_cost=STEP_COST,attack_extra=ATTACK_COST,
+                    rules=dict(version=6,patch='7.5.6',action_prices=copy.deepcopy(PRICES),effective_unit_price=self.unit_price(s),step_cost=STEP_COST,attack_extra=ATTACK_COST,
                                speed={kind:self.speed_for(s,kind) for kind in SPEED},land_water_rule='Суша: сухопутные юниты, включая современные. Вода: только ship. navigation не разрешает пехоте воду. Для перевозки embark/disembark.',unit_metal_per_strength=METAL_PER_STRENGTH,money_per_tile=4,money_per_citizen=1),
                     standing_policy=copy.deepcopy(s.operations),mobility=self.mobility_context(s),military=self.military_context(s),naval=self.naval_context(s),map_mode=getattr(self,'map_mode','normal'),
                     economy=forecast,relations=self.relations_context(s),
@@ -493,7 +494,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
         self.log('world',f'Открыты новые земли: {old} → {new}. Координаты старого мира сохранены.')
 
     def data(self):
-        return dict(version=6,patch='7.5.5',map_mode=getattr(self,'map_mode','normal'),generation_size=getattr(self,'generation_size',self.size),exchanges=copy.deepcopy(self.exchanges),next_exchange=self.next_exchange,settlements=copy.deepcopy(self.settlements),next_receipt=self.next_receipt,supply_pacts=copy.deepcopy(self.supply_pacts),next_supply=self.next_supply,vassal_offers=copy.deepcopy(self.vassal_offers),vassal_treaties=copy.deepcopy(self.vassal_treaties),pledges=copy.deepcopy(self.pledges),next_vassal_offer=self.next_vassal_offer,next_pledge=self.next_pledge,surrender_demands=copy.deepcopy(self.surrender_demands),rules_version=6,wars=copy.deepcopy(self.wars),daily_income=copy.deepcopy(self.daily_income),size=self.size,seed=self.seed,day=self.day,cursor=self.cursor,in_day=self.in_day,
+        return dict(version=6,patch='7.5.6',map_mode=getattr(self,'map_mode','normal'),generation_size=getattr(self,'generation_size',self.size),exchanges=copy.deepcopy(self.exchanges),next_exchange=self.next_exchange,settlements=copy.deepcopy(self.settlements),next_receipt=self.next_receipt,supply_pacts=copy.deepcopy(self.supply_pacts),next_supply=self.next_supply,vassal_offers=copy.deepcopy(self.vassal_offers),vassal_treaties=copy.deepcopy(self.vassal_treaties),pledges=copy.deepcopy(self.pledges),next_vassal_offer=self.next_vassal_offer,next_pledge=self.next_pledge,surrender_demands=copy.deepcopy(self.surrender_demands),rules_version=6,wars=copy.deepcopy(self.wars),daily_income=copy.deepcopy(self.daily_income),size=self.size,seed=self.seed,day=self.day,cursor=self.cursor,in_day=self.in_day,
                     history_book=copy.deepcopy(self.history_book),movement_log=copy.deepcopy(self.movement_log),learning=copy.deepcopy(getattr(self,'learning',{})),day_stats=copy.deepcopy(self.day_stats),last_day_stats=copy.deepcopy(self.last_day_stats),operations_day=self.operations_day,
                     phase=self.phase,pending_decisions=copy.deepcopy(self.pending_decisions),decisions=copy.deepcopy(self.decisions),
                     messages=copy.deepcopy(self.messages),trade_offers=copy.deepcopy(self.trade_offers),next_offer=self.next_offer,
@@ -506,7 +507,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
         obj.phase='planning' if data.get('in_day') else 'idle'
         obj.history_book=[]
         obj.pending_decisions={}; obj.decisions=[]; obj.messages=[]; obj.trade_offers=[]; obj.next_offer=1
-        obj.patch='7.5.5'; obj.surrender_demands=[]; obj.supply_pacts=[]; obj.next_supply=1
+        obj.patch='7.5.6'; obj.surrender_demands=[]; obj.supply_pacts=[]; obj.next_supply=1
         obj.exchanges=[]; obj.next_exchange=1; obj.settlements=[]; obj.next_receipt=1
         obj.vassal_offers=[]; obj.vassal_treaties=[]; obj.pledges=[]; obj.next_vassal_offer=1; obj.next_pledge=1
         obj.rules_version=6; obj.wars=[]; obj.daily_income={}; obj.movement_log=[]; obj.day_stats={}; obj.last_day_stats={}
@@ -515,7 +516,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
             if k not in ('version','cells','states'): setattr(obj,k,copy.deepcopy(v))
         obj.cells=[Cell(**c) for c in data['cells']]; obj.states=[State(**copy.deepcopy(s)) for s in data['states']]
         for state in obj.states:obj.learning_record(state.id)
-        obj.rules_version=6; obj.patch='7.5.5'
+        obj.rules_version=6; obj.patch='7.5.6'
         for u in obj.units:
             for key,value in dict(born_day=None,order=None,moves_day=-1,moves_used=0,command_day=-1,skip_day=-1,blocked_reason='').items(): u.setdefault(key,value)
             order=u.get('order') or {}
@@ -545,7 +546,7 @@ class Store:
         snapshot=world.data()
         with closing(sqlite3.connect(self.path)) as db, db:
             old=None if self._format_verified else db.execute('SELECT data FROM snapshot WHERE id=1').fetchone()
-            if old and (json.loads(old[0]).get('version',1)<5 or json.loads(old[0]).get('patch')!='7.5.5'):
+            if old and (json.loads(old[0]).get('version',1)<5 or json.loads(old[0]).get('patch')!='7.5.6'):
                 from .saves import backup_connection
                 self.backup_path=backup_connection(db,self.path.parent,old[0])
             db.execute('INSERT OR REPLACE INTO snapshot VALUES (1,?)',(json.dumps(snapshot,ensure_ascii=False,separators=(',',':')) ,))

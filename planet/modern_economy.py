@@ -11,6 +11,33 @@ class ModernEconomy:
         if cell.terrain=='water' or cell.radiation>0: return 0
         if self.era_for(state)==1: return max(1,cell.population) # Captured cities never silently erase their people.
         return BUILDINGS.get(cell.building,{}).get('capacity',20)
+    def population_status(self,state):
+        sites=self.positions(state.id)
+        population=sum(self.cell(p).population for p in sites)
+        free=sum(max(0,self.population_capacity(state,self.cell(p))-self.cell(p).population) for p in sites)
+        recovery=[]
+        if not population and self.era_for(state)==2 and not state.eliminated:
+            if 'urban_planning' in state.tech and free>=100:
+                cost=dict(money=2500,food=4000,resource=500)
+                recovery.append(dict(action=dict(type='edict',args=dict(edict='population_campaign',amount=100)),cost=cost,affordable=self.funds_available(state,cost)))
+            safe=next((p for p in sites if not self.cell(p).population and self.population_capacity(state,self.cell(p))>0),None)
+            if safe is not None:
+                amount=min(2,sum(not self.cell(p).population and self.population_capacity(state,self.cell(p))>0 for p in sites))
+                cost=dict(money=50*amount,food=30*amount,resource=10*amount)
+                recovery.append(dict(action=dict(type='settle',args=dict(cell=safe,amount=amount)),cost=cost,affordable=self.funds_available(state,cost)))
+        return dict(population=population,daily_growth_rate=.1,growth_remainder_tenths=state.modern.get('growth_remainder_tenths',0),free_housing=free,recovery_orders=recovery,
+            rule='Рост +10% от живого населения после содержания, вниз до целого; дробь накапливается. Жильё ограничивает размещение, лишние целые рождения не копятся. При нуле нужен оплаченный приказ заселения; подсказка сама ресурсы не списывает.')
+
+    def passive_population_growth(self,state):
+        if state.eliminated or state.modern.get('population_growth_day')==self.day:return
+        status=self.population_status(state)
+        # Population/10 is exact in tenths: 3 people add 3/10, never float-round away.
+        whole,remainder=divmod(status['population']+status['growth_remainder_tenths'],10)
+        added=min(whole,status['free_housing'])
+        if added:self.place_people(state,added)
+        state.modern.update(population_growth_day=self.day,growth_remainder_tenths=remainder,
+            last_population_growth=dict(day=self.day,before=status['population'],added=added,blocked_by_housing=whole-added,remainder_tenths=remainder))
+
     def workforce(self,state):
         fraction=.7 if state.modern.get('mobilization_until',-1)>=self.day else .55
         return int(sum(self.cell(p).population for p in self.positions(state.id))*fraction)
@@ -96,12 +123,16 @@ class ModernEconomy:
         if any(r['building']=='hospital' and r['utilization']>=.5 for r in plan['buildings']): mortality*=.7
         status['bankrupt']=status['debt']>max(50000,plan['population']*100)
         casualties=0
+        mortality_remainder=status.get('mortality_remainder',0.0)
         for p in self.positions(state.id):
             cell=self.cell(p)
             if cell.population:
                 overcrowding=max(0,cell.population-self.population_capacity(state,cell))
-                losses=min(cell.population,math.ceil(cell.population*mortality) if mortality else 0)+min(overcrowding,max(1,math.ceil(overcrowding*.05)))
+                expected=round(cell.population*mortality+mortality_remainder,12)
+                natural_losses=math.floor(expected); mortality_remainder=round(expected-natural_losses,12)
+                losses=natural_losses+min(overcrowding,max(1,math.ceil(overcrowding*.05)))
                 losses=min(cell.population,losses); cell.population-=losses; casualties+=losses
+        status['mortality_remainder']=mortality_remainder
         if health: state.stocks['medicine']-=plan['population']*.01
         if consumer: state.stocks['consumer_goods']-=plan['population']*.02
         for unit in list(self.units):

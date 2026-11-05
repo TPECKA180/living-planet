@@ -65,8 +65,11 @@ class VassalTests(Fixture):
         self.assertEqual(forecasts[self.subject.id]['tribute_balance'],-expected)
     def test_term_pays_exact_number_of_days_and_expires_before_next_income(self):
         treaty=self.contract(duration=5); gross=sum(self.w.production_for_cell(self.subject,self.w.cell(p))['money'] for p in self.w.positions(self.subject.id))
-        for _ in range(5): self.w.in_day=False; self.w.start_day()
-        self.assertEqual(treaty['paid_total'],round(gross*.2*5,2)); self.assertEqual(self.w.tribute_forecast()[self.subject.id],0)
+        expected=0
+        for _ in range(5):
+            expected+=round(sum(self.w.production_for_cell(self.subject,self.w.cell(p))['money'] for p in self.w.positions(self.subject.id))*.2,2)
+            self.w.in_day=False; self.w.start_day()
+        self.assertAlmostEqual(treaty['paid_total'],expected); self.assertEqual(self.w.tribute_forecast()[self.subject.id],0)
         self.w.in_day=False; self.w.start_day(); self.assertIsNone(self.subject.vassal_of); self.assertEqual(treaty['status'],'expired')
     def test_attack_on_subject_automatically_brings_lord_into_war(self):
         self.contract(); self.w.set_war(self.third.id,self.subject.id,'Нападение на вассала')

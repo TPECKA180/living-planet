@@ -10,7 +10,7 @@ DEFAULTS=dict(host='http://localhost:1234/v1',model='',manager_model='',state_mo
     strict_state_isolation=True,external_console=True,stream=True,deep_strategy=True,
     review_relations=True,structured_reviews=True,structured_primary=True,decision_compiler=True,
     calibrate_context=True,detect_repetition=True,unified_execution_review=True,
-    reflective_learning=True,local_execution=True,local_chronicle=True,runtime_patch='7.5.5',
+    reflective_learning=True,local_execution=True,local_chronicle=True,runtime_patch='7.5.6',
     response_max_bytes=33554432,saves_directory='saves',manager_every=10,seed=42,states=4,
     database='data/planet.sqlite3')
 

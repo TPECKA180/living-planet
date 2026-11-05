@@ -149,7 +149,7 @@ def settings(config):
 class App:
     def __init__(self,world,store,config):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v7.5.5 · лаборатория миров')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v7.5.6 · лаборатория миров')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
         self.font=pg.font.SysFont('segoeui',17); self.small=pg.font.SysFont('segoeui',14)
         self.title=pg.font.SysFont('segoeui',30,bold=True); self.medium=pg.font.SysFont('segoeui',21,bold=True)
@@ -296,7 +296,7 @@ class App:
     def draw(self):
         pg=self.pg; width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('7.5.5  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
+        self.text('7.5.6  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -591,7 +591,7 @@ class App:
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v7.5.5 · лаборатория миров')
+            self.pg.display.set_caption('Живая планета · v7.5.6 · лаборатория миров')
             if changed:
                 enabled=self.config.get('external_console',True)
                 if not enabled: self.runner.console.close()
