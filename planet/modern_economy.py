@@ -17,16 +17,37 @@ class ModernEconomy:
         free=sum(max(0,self.population_capacity(state,self.cell(p))-self.cell(p).population) for p in sites)
         recovery=[]
         if not population and self.era_for(state)==2 and not state.eliminated:
-            if 'urban_planning' in state.tech and free>=100:
+            if 'urban_planning' in state.tech and free>=100 and state.modern.get('edict_day')!=self.day:
                 cost=dict(money=2500,food=4000,resource=500)
                 recovery.append(dict(action=dict(type='edict',args=dict(edict='population_campaign',amount=100)),cost=cost,affordable=self.funds_available(state,cost)))
-            safe=next((p for p in sites if not self.cell(p).population and self.population_capacity(state,self.cell(p))>0),None)
-            if safe is not None:
-                amount=min(2,sum(not self.cell(p).population and self.population_capacity(state,self.cell(p))>0 for p in sites))
+            safe=[p for p in sites if self.population_capacity(state,self.cell(p))>0]
+            if safe:
+                maximum=min(10,len(safe))
+                affordable=max((n for n in range(1,maximum+1)
+                                if self.funds_available(state,dict(money=50*n,food=30*n,resource=10*n))),default=0)
+                amount=affordable or 1
                 cost=dict(money=50*amount,food=30*amount,resource=10*amount)
-                recovery.append(dict(action=dict(type='settle',args=dict(cell=safe,amount=amount)),cost=cost,affordable=self.funds_available(state,cost)))
+                recovery.append(dict(action=dict(type='settle',args=dict(cell=safe[0],amount=amount)),cost=cost,affordable=bool(affordable)))
         return dict(population=population,daily_growth_rate=.1,growth_remainder_tenths=state.modern.get('growth_remainder_tenths',0),free_housing=free,recovery_orders=recovery,
-            rule='Рост +10% от живого населения после содержания, вниз до целого; дробь накапливается. Жильё ограничивает размещение, лишние целые рождения не копятся. При нуле нужен оплаченный приказ заселения; подсказка сама ресурсы не списывает.')
+            rule='Рост +10% от живого населения после содержания, вниз до целого; дробь накапливается. Жильё ограничивает размещение, лишние целые рождения не копятся. При нуле жители восстанавливаются первым приоритетом при исполнении. Если выбранный приказ не сработал, движок проводит одно доступное платное заселение.')
+
+    def population_actions(self,state,actions):
+        if self.era_for(state)!=2 or state.eliminated or any(self.cell(p).population for p in self.positions(state.id)):
+            yield from actions
+            return
+        other=[]
+        for action in actions:
+            kind=action.get('type',action.get('action')) if isinstance(action,dict) else None
+            args=action.get('args',action) if isinstance(action,dict) else None
+            if kind=='settle' or (kind=='edict' and isinstance(args,dict) and args.get('edict')=='population_campaign'):
+                yield action
+            else:
+                other.append(action)
+        for option in self.population_status(state)['recovery_orders']:
+            if option['affordable']:
+                yield {**option['action'],'source':'population_recovery'}
+                break
+        yield from other
 
     def passive_population_growth(self,state):
         if state.eliminated or state.modern.get('population_growth_day')==self.day:return

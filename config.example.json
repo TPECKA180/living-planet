@@ -31,7 +31,7 @@
   "reflective_learning": true,
   "local_execution": true,
   "local_chronicle": true,
-  "runtime_patch": "7.5.6",
+  "runtime_patch": "7.5.7",
   "response_max_bytes": 33554432,
   "saves_directory": "saves",
   "manager_every": 10,

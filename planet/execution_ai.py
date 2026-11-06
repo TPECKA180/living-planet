@@ -25,11 +25,11 @@ def compile_orders(context,decision):
 
 def preview_orders(world,sid,decision):
     from .engine import World
-    if not decision.get('actions'):
+    if not decision.get('actions') and not any(world.population_actions(world.state(sid),[])):
         return dict(day=world.day,scope='Нет приказов: состояние не меняется',results=[],failed=0,stocks_after=copy.deepcopy(world.state(sid).stocks))
     sandbox=World.restore(world.data()); state=sandbox.state(sid)
     rows=[]
-    for index,action in enumerate(decision.get('actions',[])):
+    for index,action in enumerate(sandbox.population_actions(state,decision.get('actions',[]))):
         try:
             message=sandbox.execute(state,action)
             rows.append(dict(index=index,type=action.get('type'),success=True,message=message))
