@@ -78,7 +78,7 @@ class RecoveryTests(unittest.TestCase):
             with self.assertRaises(AutomaticRetry): brain.complete(RULES,dict(notes='Память'),'test')
         self.assertLess(brain.context_limits['test'],32768)
 
-    def test_cut_off_generation_stops_without_replaying_partial_json(self):
+    def test_cut_off_generation_recovers_once_without_replaying_partial_json(self):
         brain=Brain(dict(model='test',context_window=98304,max_tokens=32768,stream=False))
         brain.capacity_signature=(None,98304,None,32768,56000);brain.response_limits['test']=8192
         payloads=[]
@@ -87,8 +87,8 @@ class RecoveryTests(unittest.TestCase):
             if len(payloads)==1: return dict(choices=[dict(message=dict(content='{"thinking":'),finish_reason='length')])
             return dict(choices=[dict(message=dict(content=json.dumps(answer(),ensure_ascii=False)),finish_reason='stop')])
         with patch.object(brain,'request',side_effect=request):
-            with self.assertRaises(__import__('planet.generation_recovery',fromlist=['GenerationStalled']).GenerationStalled):brain.complete(RULES,dict(notes='Память'),'test')
-        self.assertEqual(len(payloads),1);self.assertEqual(payloads[0]['max_tokens'],110000)
+            self.assertEqual(brain.complete(RULES,dict(notes='Память'),'test'),answer())
+        self.assertEqual(len(payloads),2);self.assertTrue(all(p['max_tokens']==110000 for p in payloads))
 
     def test_non_context_http_error_is_not_misreported_as_overflow(self):
         self.assertFalse(context_error('HTTP 401 Unauthorized'))

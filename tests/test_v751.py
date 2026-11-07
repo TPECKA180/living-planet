@@ -24,13 +24,13 @@ class CapacityTests(unittest.TestCase):
         result=dict(choices=[dict(message=dict(content='{"ok":true}'),finish_reason='stop')])
         with patch.object(brain,'prepare_model',return_value=('m',110848)),patch.object(brain,'request',return_value=result):brain.complete(RULES,dict(stocks={}),'m')
         row=next(data for kind,data in events if kind=='request_start');self.assertEqual(row['requested_output'],131072);self.assertEqual(row['actual_output'],131072);self.assertEqual(row['window'],110848);self.assertEqual(cfg,before)
-    def test_length_at_requested_ceiling_stops_without_replaying(self):
+    def test_length_at_requested_ceiling_recovers_once(self):
         brain=Brain(dict(model='m',stream=False,context_window=262144,max_tokens=131072,input_tokens=56000));calls=[]
         def send(path,payload):
             calls.append(payload);return dict(choices=[dict(message=dict(content='{' if len(calls)==1 else '{"ok":true}'),finish_reason='length' if len(calls)==1 else 'stop')])
         with patch.object(brain,'request',side_effect=send):
-            with self.assertRaises(__import__('planet.generation_recovery',fromlist=['GenerationStalled']).GenerationStalled):brain.complete(RULES,dict(stocks={}),'m')
-        self.assertEqual(len(calls),1);self.assertEqual(calls[0]['max_tokens'],131072)
+            self.assertEqual(brain.complete(RULES,dict(stocks={}),'m'),{'ok':True})
+        self.assertEqual(len(calls),2);self.assertTrue(all(p['max_tokens']==131072 for p in calls))
     def test_allocator_errors_trigger_capacity_recovery_not_auth_retry(self):
         self.assertTrue(context_error('Failed to allocate CUDA KV buffer'));self.assertTrue(context_error('Memory allocation failed'));self.assertFalse(context_error('HTTP401 Unauthorized'))
     def test_stream_requests_real_usage_and_calibrates_input(self):
