@@ -1,50 +1,50 @@
-# Architecture 8.0.0
+у# Архитектура 8.0.0
 
-## Entry points and state
-main.py → Runner.work → World. Planning, preparing, resolution, manager and idle retain their existing order.
-World.data/restore remain the save contract. Store and WorldLibrary own SQLite and exports.
-Registry objects are transient and omitted from saves.
+## Точки входа и состояние
+main.py → Runner.work → World. Планирование, подготовка, выполнение, менеджер и режим ожидания сохраняют прежний порядок.
+World.data/restore по-прежнему отвечают за сохранение данных. Store и WorldLibrary управляют SQLite и экспортом данных.
+Объекты Registry являются временными и не включаются в сохраняемые данные.
 
-## Boundaries
-World.systems is a lazy per-world SystemRegistry from planet/systems.py.
-A Component declares its ID, dependencies, ownership and a LegacyInterface with explicit operation names.
-Example: world.systems['population'].call('status', state).
-Registration rejects duplicate IDs, missing dependencies and cycles. It never schedules a game phase.
+## Границы
+World.systems — это ленивый SystemRegistry для каждого мира из файла planet/systems.py.
+Компонент объявляет свой ID, зависимости, владельца и LegacyInterface с явными именами операций.
+Пример: world.systems[„population“].call(„status“, state).
+Регистрация отклоняет дубликаты ID, отсутствующие зависимости и циклы. Она никогда не планирует фазы игры.
 
-| ID | Implementation | Main operations / owned data |
+| ID | Реализация | Основные операции / принадлежащие данные |
 | --- | --- | --- |
-| state | engine.py | context, positions, snapshot / cells, states, units |
-| economy | economy.py, engine.income | forecast, income, production / stocks, income ledger |
-| population | modern_economy.py | status, capacity, place, orders / population, fractional growth |
-| industry | modern.py, modern_economy.py | plan, forecast, context / factories and industrial status |
-| construction | infrastructure.py | projects, cost, repair_wall / buildings and walls |
-| technology | technology.py, modern.py | catalog, research / technology and era |
-| diplomacy | diplomacy.py, engine.send_message | relations, action, message / relations, wars, letters |
-| trade | commerce.py, modern_trade.py | context, assess, action, supply / offers, payments and contracts |
-| military | mobility.py, naval.py, military_ai.py | context, naval, route, move / units and movement |
-| politics | politics.py | context, action / vassals and pledges |
-| events | engine.log | record / existing event chronology |
+| state | engine.py | контекст, позиции, моментальный снимок / ячейки, состояния, юниты |
+| economy | economy.py, engine.income | прогноз, доход, производство / запасы, книга доходов |
+| population | modern_economy.py | статус, пропускная способность, место, заказы / население, долевой рост |
+| промышленность | modern.py, modern_economy.py | план, прогноз, контекст / фабрики и состояние промышленности |
+| строительство | infrastructure.py | проекты, стоимость, repair_wall / здания и стены |
+| технологии | technology.py, modern.py | каталог, исследования / технологии и эпохи |
+| дипломатия | diplomacy.py, engine.send_message | отношения, действие, сообщение / отношения, войны, письма |
+| торговля | commerce.py, modern_trade.py | контекст, оценка, действие, поставки / предложения, платежи и контракты |
+| военное дело | mobility.py, naval.py, military_ai.py | контекст, флот, маршрут, перемещение / юниты и передвижение |
+| политика | politics.py | контекст, действие / вассалы и обещания |
+| события | engine.log | запись / хронология существующих событий |
 
-Runner uses the state boundary for context, LLMAdapter for think/manager and PersistenceAdapter for saves.
-Actual execution and preview use the same CommandDispatcher. Existing actions delegate unchanged to World.execute.
-Old Brain, Store, World methods and imports remain valid.
-No extra model calls or world copies are introduced by the adapter layer.
+Runner использует границу состояния для контекста, LLMAdapter для think/manager и PersistenceAdapter для сохранений.
+Фактическое выполнение и предварительный просмотр используют один и тот же CommandDispatcher. Существующие действия делегируются без изменений в World.execute.
+Старые методы Brain, Store, World и импорты остаются действительными.
+Уровень адаптера не вводит дополнительных вызовов модели или копий мира.
 
-## Extension procedure
-Add a component in a separate module and register it in create_systems. Dependencies must already exist.
-Register new commands there through registry.commands.register. Existing command names cannot be replaced.
-Keep validation/payment/mutation inside the owning operation. Expose new AI actions only after a separately authorized schema/catalog update.
-Catalog views come from systems.catalogs and reference existing definitions. Nested records remain legacy objects and must be treated as read-only until an authorized catalog edit.
-Use the existing log contract for events. No new event dispatcher is needed.
+## Процедура расширения
+Добавьте компонент в отдельный модуль и зарегистрируйте его в create_systems. Зависимости должны уже существовать.
+Зарегистрируйте там новые команды с помощью registry.commands.register. Имена существующих команд не могут быть заменены.
+Сохраняйте валидацию/оплату/мутацию внутри владеющей операции. Предоставляйте доступ к новым действиям ИИ только после отдельно авторизованного обновления схемы/каталога.
+Представления каталога поступают из systems.catalogs и ссылаются на существующие определения. Вложенные записи остаются объектами устаревшего типа и должны рассматриваться как доступные только для чтения до авторизованного редактирования каталога.
+Используйте существующий контракт журнала для событий. Новый диспетчер событий не требуется.
 
-## Remaining coupling
-Legacy mixins still call one another and access shared World fields. Ownership is logical and the public operation whitelist is explicit, but internal data isolation is not complete.
-The UI and most internal calls retain legacy entry points. Future work can migrate one caller at a time without changing algorithms.
-The next small step is to migrate one external economy consumer to the forecast operation.
+## Остаточная связь
+Устаревшие миксины по-прежнему вызывают друг друга и получают доступ к общим полям World. Принадлежность является логической, а белый список публичных операций явно определён, но внутренняя изоляция данных не является полной.
+Пользовательский интерфейс и большинство внутренних вызовов сохраняют устаревшие точки входа. В ходе дальнейшей работы можно будет поочередно переносить вызывающие стороны без изменения алгоритмов.
+Следующим небольшим шагом станет перенос одного внешнего потребителя экономических данных на операцию прогнозирования.
 
-## Requested generation fix
-The only behavior change beyond architecture concerns the reported truncated LLM response.
-The stream now checks a bounded rolling tail of server reasoning with the existing repetition detector.
-An incomplete length response gets at most one clean recovery within the existing attempt budget. Complete JSON still passes the existing validators.
-Normal prompts, schemas, request settings and response ceilings are preserved. Recovery clarification applies only after a failure.
-Persistent failure still stops safely with the current day and completed decisions retained.
+## Запрошенное исправление генерации
+Единственное изменение поведения, выходящее за рамки архитектуры, касается сообщаемого усечённого ответа LLM.
+Поток теперь проверяет ограниченный скользящий хвост выводов сервера с помощью существующего детектора повторений.
+Неполный по длине ответ получает не более одного корректного восстановления в рамках существующего бюджета попыток. Полный JSON по-прежнему проходит существующие валидаторы.
+Обычные подсказки, схемы, настройки запросов и ограничения ответов сохраняются. Уточнение восстановления применяется только после сбоя.
+Постоянный сбой по-прежнему безопасно останавливается с сохранением данных текущего дня и завершенных решений.
