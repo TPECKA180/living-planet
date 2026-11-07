@@ -31,7 +31,7 @@ def preview_orders(world,sid,decision):
     rows=[]
     for index,action in enumerate(sandbox.population_actions(state,decision.get('actions',[]))):
         try:
-            message=sandbox.execute(state,action)
+            message=sandbox.systems.commands.execute(state,action)
             rows.append(dict(index=index,type=action.get('type'),success=True,message=message))
         except (RuleError,TypeError,KeyError,AttributeError,OverflowError) as exc:
             rows.append(dict(index=index,type=action.get('type') if isinstance(action,dict) else None,success=False,message=str(exc)))

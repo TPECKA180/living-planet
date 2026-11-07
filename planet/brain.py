@@ -100,6 +100,8 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         if isinstance(message.get(field),str): self.emit(kind,message[field])
                     return result
                 fragments=[]; finish=None; usage={}; ended=False; pending=[]; recent=''; repetition_check=0
+                from .generation_recovery import ReasoningWatch
+                reasoning_watch=ReasoningWatch()
                 for line in stream_lines(response,limit):
                     line=line.decode('utf-8').rstrip('\r\n')
                     if line.startswith('data:'): pending.append(line[5:].lstrip())
@@ -112,7 +114,10 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         for choice in chunk.get('choices',[]):
                             delta=choice.get('delta',{})
                             reasoning=delta.get('reasoning_content') or delta.get('reasoning')
-                            if isinstance(reasoning,str): broadcast('reasoning',reasoning)
+                            if isinstance(reasoning,str):
+                                broadcast('reasoning',reasoning)
+                                if self.config.get('detect_repetition',True) and reasoning_watch.feed(reasoning):
+                                    raise RepeatedOutput('Повторяющийся текст в reasoning сервера')
                             content=delta.get('content')
                             if isinstance(content,str):
                                 fragments.append(content); broadcast('content',content)
@@ -246,7 +251,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             raise IsolationError('Владелец экземпляра модели не совпадает с участником запроса')
         window=min(window,self.context_limits.get(model,window))
         attempts=max(1,int(self.config.get('context_retry_attempts',8)))
-        repair=None;envelope_error=None;repetitions=0
+        repair=None;envelope_error=None;repetitions=0;length_retries=0
         for attempt in range(attempts):
             # max_tokens is a server-side generation ceiling, not an allocation
             # that must evict the factual input before a request is even sent.
@@ -333,6 +338,11 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     complete=parse_json(choice['message'].get('content',''))
                     if isinstance(complete,dict):return complete
                 except (ValueError,TypeError):pass
+                if length_retries==0 and attempt+1<attempts:
+                    length_retries+=1
+                    repair=dict(error='Сервер завершил неполный ответ по длине. Черновик исключён.',instruction='Верни один полный JSON без повторяющихся объяснений; сохрани конкретные приказы и память.')
+                    self.emit('status','Ответ остановлен сервером по длине. Один восстановительный запрос с прежними лимитами; черновик не применяется.')
+                    continue
                 raise GenerationStalled(f'LM Studio остановил ответ по длине: запрошено {output}, окно {window}, фактический вход {prompt_tokens or "не сообщён"}. Неполный JSON не применён. Повтор того же запроса автоматически НЕ запускается; для более длинного ответа требуется большее загруженное окно или устранение зацикливания модели. День и готовые решения сохранены.')
             content=choice['message'].get('content')
             if not isinstance(content,str):
@@ -414,7 +424,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                             result.setdefault('action_validation_warnings',[]).append(str(exc))
                             self.emit('status','Есть замечание к отдельному приказу: '+str(exc)+'. Сохраняем готовый разбор; приказы проверяются по порядку обычным движком без повторной генерации всего решения.')
                     self.validate_decision(result,state,context)
-                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='7.5.7'
+                    if self.config.get('strict_state_isolation',False) or self.config.get('structured_primary',False): result['owner']=state.id; result['origin_patch']='8.0.0'
                     deep_complete=False
                     if self.config.get('deep_strategy',False):
                         try: validate_assessment(result,state,base_context); deep_complete=True
@@ -426,12 +436,12 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         try: validate_assessment(result,state,base_context)
                         except ValueError as exc: deep_complete=False; result['strategic_review_required']=str(exc)
                     if deep_complete: result['relation_review_attempted']=context['day']; result['strategic_review_completed']=context['day']
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4','7.5.5','7.5.6','7.5.7'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('5.3','6.0','6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4','7.5.5','7.5.6','7.5.7','8.0.0'):
                         try: result=self.compile_construction(context,result)
                         except ValueError as exc:
                             result['construction_review_required']=str(exc)
                             self.emit('status','Основной ответ сохранится; уточним только стройку: '+str(exc))
-                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4','7.5.5','7.5.6','7.5.7'):
+                    if not self.config.get('local_execution',False) and result.get('origin_patch') in ('6.1','6.2','6.3','6.4','6.5','6.6','6.7','6.8','6.8.1','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3','7.5.4','7.5.5','7.5.6','7.5.7','8.0.0'):
                         try: result=self.compile_economy(state,context,result)
                         except (ValueError,TypeError,KeyError) as exc:
                             result['economic_review_required']=str(exc)

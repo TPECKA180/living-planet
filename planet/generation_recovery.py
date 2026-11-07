@@ -40,3 +40,18 @@ def preserve_learning(schema,context,field):
     if field not in props:return schema,False
     props[field]={'type':'null'}
     return result,True
+
+class ReasoningWatch:
+    """Observe only a rolling tail to detect a literal server reasoning loop."""
+    def __init__(self):
+        self.tail = ''
+        self.since_check = 0
+
+    def feed(self, text):
+        self.tail = (self.tail + text)[-2000:]
+        self.since_check += len(text)
+        if self.since_check < 256:
+            return False
+        self.since_check = 0
+        from .intelligence import repetitive_tail
+        return repetitive_tail(self.tail)

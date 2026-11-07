@@ -2,7 +2,7 @@
 from pathlib import Path
 import ast,hashlib,json,re
 ROOT=Path(__file__).resolve().parents[1]
-ROOT_FILES={'main.py','README.md','CHANGELOG.md','CONTRIBUTING.md','requirements.txt','config.example.json','install.bat','run.bat','.gitignore','.gitattributes'}
+ROOT_FILES={'AGENTS.md','main.py','README.md','CHANGELOG.md','CONTRIBUTING.md','requirements.txt','config.example.json','install.bat','run.bat','.gitignore','.gitattributes'}
 FOLDERS={'planet','tests','docs','tools','.github'}
 FORBIDDEN={'__pycache__','.git','.venv','saves','data','logs','work','backups','states'}
 

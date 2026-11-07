@@ -53,7 +53,7 @@ class OutputCeilingTests(unittest.TestCase):
         brain=Brain(dict(model='m',stream=True,context_window=110755,max_tokens=196608))
         with patch.object(brain,'stream_request',return_value=answer('{"actions":[','length')) as send:
             with self.assertRaisesRegex(GenerationStalled,'196608'):brain.complete('JSON',{},'m')
-        self.assertEqual(send.call_count,1);self.assertNotIn('m',brain.response_limits)
+        self.assertEqual(send.call_count,2);self.assertNotIn('m',brain.response_limits)
 
     def test_input_capacity_failure_never_halves_output(self):
         brain=Brain(dict(model='m',stream=True,context_window=110755,max_tokens=196608))

@@ -31,6 +31,9 @@ class Runner:
         self.messages=queue.Queue(); self.busy=False
         self.console=ConsoleFeed(store.path.parent,config.get('external_console',False))
         self.brain=Brain(config,observer=self.observe)
+        from planet.integrations import LLMAdapter, PersistenceAdapter
+        self.ai=LLMAdapter(self.brain)
+        self.persistence=PersistenceAdapter(store)
 
     def observe(self,kind,text='',**data):
         self.console.emit(kind,text,**data)
@@ -49,8 +52,8 @@ class Runner:
         from planet.learning import decision_signature
         self.messages.put(('status','Подготовка приказов · '+state.name))
         if legacy:
-            if self.config.get('deep_strategy',False):decision=self.brain.review_strategy(state,w.context(state,self.config),decision)
-            elif self.config.get('review_relations',False):decision=self.brain.review_relationships(state,w.context(state,self.config),decision)
+            if self.config.get('deep_strategy',False):decision=self.brain.review_strategy(state,w.systems["state"].call("context",state,self.config),decision)
+            elif self.config.get('review_relations',False):decision=self.brain.review_relationships(state,w.systems["state"].call("context",state,self.config),decision)
         decision=self.brain.prepare_execution(w,state,decision)
         self.brain.bind_actor(state.id)
         decision=self.brain.russify(decision,self.config.get('state_models',{}).get(state.id) or self.config.get('model'))
@@ -61,8 +64,8 @@ class Runner:
         try:
             w=self.world
             if not w.in_day:
-                w.start_day(); self.store.save(w); self.messages.put(('world',self.store.last_snapshot))
-            brain=self.brain
+                w.start_day(); self.persistence.save(w); self.messages.put(('world',self.store.last_snapshot))
+            brain=self.ai
             if w.phase=='planning' and w.cursor<len(w.states):
                 s=w.states[w.cursor]
                 self.console.emit('progress',day=w.day,completed=w.cursor,total=len(w.states))
@@ -71,41 +74,41 @@ class Runner:
                 decision=w.pending_decisions.get(s.id)
                 own_context=None
                 if decision is None:
-                    if not s.eliminated:own_context=w.context(s,self.config)
+                    if not s.eliminated:own_context=w.systems["state"].call("context",s,self.config)
                     decision=(dict(thinking='Государство выбыло; история сохранена.',notes=s.notes,plan=s.plan,diplomacy=[],actions=[]) if s.eliminated else brain.think(s,own_context))
-                    w.pending_decisions[s.id]=decision; self.store.save(w)
+                    w.pending_decisions[s.id]=decision; self.persistence.save(w)
                     self.messages.put(('world',self.store.last_snapshot))
                 if not s.eliminated:
                     if not self.config.get('local_execution',False) and not self.config.get('unified_execution_review',False):
-                        decision=brain.review_construction(s,w.context(s,self.config),decision)
-                        w.pending_decisions[s.id]=decision; self.store.save(w)
-                        decision=brain.review_economy(s,w.context(s,self.config),decision)
-                        w.pending_decisions[s.id]=decision; self.store.save(w)
+                        decision=brain.review_construction(s,w.systems["state"].call("context",s,self.config),decision)
+                        w.pending_decisions[s.id]=decision; self.persistence.save(w)
+                        decision=brain.review_economy(s,w.systems["state"].call("context",s,self.config),decision)
+                        w.pending_decisions[s.id]=decision; self.persistence.save(w)
                     if not self.config.get('local_execution',False) and self.config.get('deep_strategy',False):
                         self.messages.put(('status','Разбор и досье · '+s.name))
-                        decision=brain.review_strategy(s,w.context(s,self.config),decision)
-                    elif not self.config.get('local_execution',False) and self.config.get('review_relations',False): decision=brain.review_relationships(s,w.context(s,self.config),decision)
+                        decision=brain.review_strategy(s,w.systems["state"].call("context",s,self.config),decision)
+                    elif not self.config.get('local_execution',False) and self.config.get('review_relations',False): decision=brain.review_relationships(s,w.systems["state"].call("context",s,self.config),decision)
                     decision=self.prepare_actor(w,s,decision,own_context=own_context if self.config.get('local_execution',False) else None)
                     w.pending_decisions[s.id]=decision
                 w.cursor+=1
                 if w.cursor==len(w.states): w.phase='resolution'
-                self.store.save(w)
+                self.persistence.save(w)
                 self.console.emit('progress',day=w.day,completed=w.cursor,total=len(w.states))
             elif w.phase in ('resolution','planning','preparing'):
                 from planet.learning import ready
                 unfinished=[(sid,d) for sid,d in w.pending_decisions.items() if not w.state(sid).eliminated and not ready(d,w.day)]
                 if unfinished:
-                    w.phase='preparing';self.store.save(w)
+                    w.phase='preparing';self.persistence.save(w)
                     self.messages.put(('world',self.store.last_snapshot))
                     self.messages.put(('status','Подготовка старых решений: проверка приказов, не общее исполнение'))
                     for sid,decision in unfinished:
                         decision=self.prepare_actor(w,w.state(sid),decision,legacy=True)
-                        w.pending_decisions[sid]=decision;self.store.save(w)
+                        w.pending_decisions[sid]=decision;self.persistence.save(w)
                 w.phase='resolution'
                 self.messages.put(('activity','execution'))
                 candidate=World.restore(w.data())
                 candidate.resolve_round()
-                self.store.save(candidate);self.world=w=candidate
+                self.persistence.save(candidate);self.world=w=candidate
             elif w.phase=='manager':
                 candidate=World.restore(w.data())
                 if w.day % max(1,int(self.config.get('manager_every',10))) == 0:
@@ -119,11 +122,11 @@ class Runner:
                 from planet.world_history import write_history
                 write_history(candidate)
                 candidate.in_day=False; candidate.cursor=0; candidate.phase='idle'
-                self.store.save(candidate); self.world=w=candidate
+                self.persistence.save(candidate); self.world=w=candidate
             self.messages.put(('world',self.store.last_snapshot))
         except AutomaticRetry as exc:
             if getattr(exc,'owner',None) in self.world.pending_decisions and isinstance(getattr(exc,'repaired_decision',None),dict):
-                self.world.pending_decisions[exc.owner]=exc.repaired_decision;self.store.save(self.world)
+                self.world.pending_decisions[exc.owner]=exc.repaired_decision;self.persistence.save(self.world)
             self.console.emit('status',str(exc))
             self.messages.put(('world',self.world.data()))
             self.messages.put(('retry',str(exc)))
@@ -149,7 +152,7 @@ def settings(config):
 class App:
     def __init__(self,world,store,config):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v7.5.7 · лаборатория миров')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.0.0 · лаборатория миров')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
         self.font=pg.font.SysFont('segoeui',17); self.small=pg.font.SysFont('segoeui',14)
         self.title=pg.font.SysFont('segoeui',30,bold=True); self.medium=pg.font.SysFont('segoeui',21,bold=True)
@@ -296,7 +299,7 @@ class App:
     def draw(self):
         pg=self.pg; width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('7.5.7  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
+        self.text('8.0.0  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -591,7 +594,7 @@ class App:
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v7.5.7 · лаборатория миров')
+            self.pg.display.set_caption('Живая планета · v8.0.0 · лаборатория миров')
             if changed:
                 enabled=self.config.get('external_console',True)
                 if not enabled: self.runner.console.close()
