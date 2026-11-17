@@ -1,15 +1,15 @@
-# Living Planet development rules
+# Правила разработки Living Planet
 
-- Treat existing gameplay algorithms and balance as the baseline. Change behavior only for an explicit user request.
-- Preserve LLM prompts, schemas, context packing, settings and call order. A requested bug fix is a narrow, documented exception.
-- Keep World as the single state authority. Preserve SQLite format 6 and legacy imports.
-- Use World.systems interfaces for new cross-system calls. Keep legacy methods available.
-- Register components in planet/systems.py. This bootstrap runs for restored worlds too. Do not rely on a registry attached only to one temporary clone.
-- Add new content to the existing catalogs. Do not duplicate resource, building or technology definitions.
-- New commands use systems.commands and must validate all prerequisites before mutation. Registration must happen in the bootstrap for restored worlds.
-- Preserve command order, day phases, RNG order, error behavior and paid costs unless the user explicitly requests a change.
-- Legacy mixins still share internal data. Keep internal algorithms intact during architectural work. Ownership metadata describes the boundary, not a security sandbox.
-- Prefer small modules and thin adapters. Avoid heavy frameworks, duplicate state, event queues and cosmetic rewrites.
-- Do not remove existing tests or overwrite user changes. Use focused existing checks. Do not create new large test suites or run long simulations without a request.
-- Keep private saves, local config and logs out of publications.
-- Record architecture changes briefly in docs/MODULAR_ARCHITECTURE.md.
+- Считать существующие игровые алгоритмы и баланс исходной основой. Изменять поведение только по явному запросу пользователя.
+- Сохранять промпты языковых моделей (LLM), схемы, упаковку контекста, настройки и порядок вызовов. Исправление ошибки по запросу допускается как узкое, документированное исключение.
+- Сохранять World единственным источником истины о состоянии мира. Поддерживать формат SQLite версии 6 и импорт из прежних версий.
+- Для новых межсистемных вызовов использовать интерфейсы World.systems. Сохранять доступность прежних методов.
+- Регистрировать компоненты в planet/systems.py. Инициализация выполняется также при восстановлении сохранённых миров. Не полагаться на реестр, привязанный только к временному клону.
+- Добавлять новый контент в существующие каталоги. Не дублировать определения ресурсов, зданий или технологий.
+- Для новых команд использовать systems.commands и проверять все предварительные условия до изменения состояния. Регистрацию выполнять при инициализации, в том числе для восстановленных миров.
+- Сохранять порядок команд, фазы дня, порядок использования генератора случайных чисел (RNG), обработку ошибок и стоимость платных действий, если пользователь явно не запросил изменения.
+- Устаревшие классы-примеси (legacy mixins) по-прежнему используют общие внутренние данные. При архитектурных изменениях сохранять внутренние алгоритмы без изменений. Метаданные владения описывают границу ответственности, но не обеспечивают изоляцию данных или защитную песочницу.
+- Предпочитать небольшие модули и тонкие адаптеры. Избегать тяжёлых фреймворков, дублирования состояния, очередей событий и косметических переписываний.
+- Не удалять существующие тесты и не перезаписывать пользовательские изменения. Использовать точечные существующие проверки. Не создавать новые большие наборы тестов и не запускать длительные симуляции без запроса.
+- Не включать в публичные версии личные сохранения, локальные конфигурации и журналы.
+- Кратко фиксировать архитектурные изменения в docs/MODULAR_ARCHITECTURE.md.
