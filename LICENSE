@@ -1,0 +1,165 @@
+LIVING PLANET FREE COMMUNITY LICENSE
+Version 1.0 — 21 November 2026
+
+Copyright (c) 2026 TPECKA180
+Original project: https://github.com/TPECKA180/living-planet
+
+IMPORTANT: This is a custom license. It is NOT an OSI-approved Open Source
+license. It grants rights only to material whose copyright holders can
+authorize those rights. Read Section 8 for third-party material.
+
+1. DEFINITIONS
+
+"Project" means the original Living Planet («Живая планета») software and
+its original accompanying source code, documentation, and assets that
+TPECKA180 owns or is authorized to license under these terms.
+
+"Covered Material" means the Project and any modifications or derivative
+works incorporating copyright-protected portions of the Project, but not
+independent works or separately licensed third-party material.
+
+"Modified Version" means a version of Covered Material that has been
+changed, extended, translated, adapted, or combined with other work.
+
+"Distribution" includes making copies, downloads, installations, or
+hosted access available to others.
+
+"Corresponding Source" means the editable source code, scripts, assets,
+build instructions, and modifications reasonably needed to build and
+modify the Covered Material, excluding separately licensed dependencies
+that can be obtained independently.
+
+2. PERMISSION TO USE AND IMPROVE
+
+Subject to all conditions below, each recipient receives a worldwide,
+non-exclusive, royalty-free permission, for the duration of the applicable
+copyright, to use, study, copy, modify, and distribute Covered Material
+and Modified Versions.
+
+Private modifications do not have to be published. No copyright or
+ownership in the original Project is transferred to recipients.
+
+3. THE GAME AND ITS MODIFICATIONS MUST REMAIN FREE OF CHARGE
+
+No person may sell, rent, license for a fee, or impose any mandatory
+payment for downloading, obtaining, playing, using, copying, updating,
+or accessing Covered Material or a Modified Version.
+
+This prohibits paywalls, paid builds, paid DLC derived from Covered
+Material, subscriptions required for access, in-game purchases,
+microtransactions, paid gameplay features, and monetization through
+advertisements embedded in a distributed Modified Version.
+
+Distribution and access to Covered Material must remain free of charge,
+including when bundled with other software or hosted online. A
+distributor may not disguise a required payment as a processing,
+delivery, activation, or support fee.
+
+Unconditional, voluntary donations are allowed only if contributors
+and non-contributors receive the same full free access, functionality,
+updates, and source code; donations must not unlock content or features.
+
+These restrictions concern Covered Material. They do not prohibit
+independent works that do not incorporate protected Project material.
+
+4. SOURCE AVAILABILITY AND SAME-LICENSE DISTRIBUTION
+
+When distributing any Covered Material or Modified Version, you must:
+
+(a) Provide the complete Corresponding Source without charge, either
+    with the distribution or through a conspicuous, functioning,
+    publicly accessible link available without registration or payment.
+(b) License all original-project-derived portions and your copyrightable
+    modifications to those portions under this same Version 1.0, so that
+    every subsequent recipient receives the permissions and obligations
+    stated here. Contributors retain copyright in their own additions.
+(c) Include this LICENSE text unmodified with the distributed Covered
+    Material, and preserve all existing legally required third-party
+    notices and licenses.
+(d) Clearly identify material changes and the contributors responsible
+    for them, without implying that the original creator endorsed them.
+(e) Not impose extra licensing, technical, or contractual restrictions
+    that prevent recipients from exercising rights granted here.
+
+This section does not purport to relicense independent third-party works.
+
+5. MANDATORY ORIGINAL-CREATOR CREDIT
+
+Every publicly distributed Covered Material or Modified Version must
+include a README.md at the top level of its source distribution.
+
+The FIRST visible sentence of that README.md, before any heading,
+image, badge, slogan, or other introduction, must be exactly:
+
+Original Living Planet («Живая планета») was created by TPECKA180; original source: https://github.com/TPECKA180/living-planet.
+
+Additional translations, credits, headings, and descriptions may follow
+that first sentence, but may not replace or obscure it.
+
+Where the Covered Material is presented or downloaded on a public page,
+the original creator and original-repository URL must also be clearly
+identified in the page's description or credits.
+
+Every playable Modified Version with a graphical or text user interface
+must display "Original creator: TPECKA180" and
+"https://github.com/TPECKA180/living-planet" in a reasonably accessible,
+readable "About", "Credits", or equivalent section. The credit must not
+be concealed or misrepresented. If such a section does not exist, one
+must be provided for distributed playable Modified Versions.
+
+Do not remove existing notices of copyright, original authorship, or
+this license. Other contributors may receive prominent credit for their
+own work, but may not claim to be the creator of the original Project.
+
+6. REDISTRIBUTION AND SUCCESSIVE MODIFICATIONS
+
+Every recipient of Covered Material automatically receives the same
+rights and obligations from the applicable rights holders under this
+Version 1.0. A distributor cannot grant fewer rights to the
+original-project-derived portions or remove the attribution obligations
+from a later Modified Version.
+
+7. NO TRADEMARK OR ENDORSEMENT LICENSE
+
+This license does not grant rights to trademarks, logos, personal names,
+or claims of official endorsement beyond the factual credit explicitly
+required in Section 5.
+
+8. THIRD-PARTY COMPONENTS AND MODELS
+
+Third-party libraries, models, model weights, fonts, media, tools, and
+other materials retain their own licenses and terms, whether packaged
+with the game or obtained separately. This license grants no rights
+that the Project's copyright holder does not possess. If combining
+materials would violate a third-party license, do not distribute that
+combination until you have an appropriate right or replace the
+incompatible material. The Project's rules do not override third-party
+licenses or statutory rights.
+
+9. TERMINATION
+
+Rights under this license terminate automatically upon a violation
+of its conditions. A recipient who stops the violation and fully
+remedies its consequences within 30 days after becoming aware of it
+may have rights reinstated, unless a rights holder has expressly
+terminated that recipient's rights for repeated violations. A valid
+license already received by a compliant downstream recipient is not
+terminated merely because an upstream distributor violated the terms.
+
+10. NO WARRANTY; LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, COVERED MATERIAL
+IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+NONINFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW,
+RIGHTS HOLDERS AND CONTRIBUTORS ARE NOT LIABLE FOR DAMAGES ARISING
+FROM USE OR INABILITY TO USE COVERED MATERIAL.
+
+11. LICENSE VERSIONS AND INTERPRETATION
+
+This Version 1.0 applies only where explicitly attached to Covered
+Material. Any future license version does not change the terms already
+granted for copies distributed under Version 1.0. This English text is
+authoritative; translations are provided for convenience.
+
+END OF LIVING PLANET FREE COMMUNITY LICENSE v1.0
