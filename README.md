@@ -4,6 +4,10 @@ Original Living Planet («Живая планета») was created by TPECKA180;
 
 **Автономные государства. Локальные нейросети. История, которая складывается из реальных решений.**
 
+**Язык / Language:** [English](docs/i18n/en/README.md) · [Русский](README.md) · [Español](docs/i18n/es/README.md) · [简体中文](docs/i18n/zh-CN/README.md) · [Português (Brasil)](docs/i18n/pt-BR/README.md) · [Deutsch](docs/i18n/de/README.md) · [Français](docs/i18n/fr/README.md) · [日本語](docs/i18n/ja/README.md) · [한국어](docs/i18n/ko/README.md) · [Italiano](docs/i18n/it/README.md)
+
+[🌐 Справочник переводов и статус локализации](docs/i18n/README.md)
+
 ![Проверки](https://github.com/TPECKA180/living-planet/actions/workflows/tests.yml/badge.svg)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Версия 8.0.0](https://img.shields.io/badge/версия-8.0.0-5CCFB2)
