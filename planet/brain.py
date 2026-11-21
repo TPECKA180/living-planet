@@ -278,7 +278,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             except ContextCapacityError as exc:
                 raise GenerationStalled('Входные данные не помещаются в подтверждённое окно LM Studio. Предел ответа не уменьшен; автоматическая регенерация остановлена без пропуска дня. '+str(exc)) from exc
             fitted['context_info']['server_output_limit']=output
-            self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, вход до {desired_input} + правила, предел ответа {output} токенов (доступная длина зависит от оставшегося окна) · попытка {attempt+1}',window=window,requested_output=output,actual_output=output,estimated_input=fitted['context_info']['estimated_input_tokens'])
+            self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, вход до {desired_input} + правила, предел ответа {output} токенов (доступная длина зависит от оставшегося окна) · попытка {attempt+1}',window=window,requested_output=output,actual_output=output,estimated_remaining_tokens=max(0,window-fitted['context_info']['estimated_input_tokens']-2048),estimated_input=fitted['context_info']['estimated_input_tokens'])
             if fitted['context_info']['trimmed']:
                 self.emit('status','Контекст сокращён только для запроса: '+json.dumps(fitted['context_info']['trimmed'],ensure_ascii=False))
             payload=dict(model=model,messages=[dict(role='system',content=actual_system),

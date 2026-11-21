@@ -24,7 +24,7 @@ def check(root=ROOT):
     for path in files:
         rel=path.relative_to(root).as_posix()
         if path.suffix=='.png':
-            if rel!='docs/assets/interface.png':errors.append('Unexpected image: '+rel)
+            if rel not in {'docs/assets/'+name+'.png' for name in ('interface','world','archipelago','closeup','construction','technology','relations','industry','factories','trade','history')}:errors.append('Unexpected image: '+rel)
             continue
         content=path.read_text(encoding='utf-8-sig')
         if re.search(r'(?:gh[pousr]_[A-Za-z0-9]{25,}|github_pat_[A-Za-z0-9_]{25,}|sk-[A-Za-z0-9_-]{25,})',content):errors.append('Possible credential: '+rel)

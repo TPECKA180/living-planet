@@ -29,6 +29,7 @@ class Runner:
     def __init__(self,world,store,config):
         self.world,self.store,self.config=world,store,config
         self.messages=queue.Queue(); self.busy=False
+        self.retry_count=0
         self.console=ConsoleFeed(store.path.parent,config.get('external_console',False))
         self.brain=Brain(config,observer=self.observe)
         from planet.integrations import LLMAdapter, PersistenceAdapter
@@ -43,6 +44,16 @@ class Runner:
         if self.busy: return
         self.busy=True
         threading.Thread(target=self.work,daemon=True).start()
+
+    def report_retry(self,message):
+        """Bound consecutive failed steps; a successful step resets the budget."""
+        self.retry_count+=1
+        if self.retry_count>=3:
+            message=f'После {self.retry_count} неудачных попыток наблюдение остановлено. Исправьте причину и продолжите вручную. День и готовые решения сохранены. '+message
+            self.console.emit('error',message)
+            self.messages.put(('error',message))
+        else:
+            self.messages.put(('retry',message))
 
     def prepare_actor(self,w,state,decision,legacy=False,own_context=None):
         if self.config.get('local_execution',False):
@@ -123,17 +134,18 @@ class Runner:
                 write_history(candidate)
                 candidate.in_day=False; candidate.cursor=0; candidate.phase='idle'
                 self.persistence.save(candidate); self.world=w=candidate
+            self.retry_count=0
             self.messages.put(('world',self.store.last_snapshot))
         except AutomaticRetry as exc:
             if getattr(exc,'owner',None) in self.world.pending_decisions and isinstance(getattr(exc,'repaired_decision',None),dict):
                 self.world.pending_decisions[exc.owner]=exc.repaired_decision;self.persistence.save(self.world)
             self.console.emit('status',str(exc))
             self.messages.put(('world',self.world.data()))
-            self.messages.put(('retry',str(exc)))
+            self.report_retry(str(exc))
         except (RuntimeError,ValueError,KeyError,TypeError) as exc:
             self.console.emit('status','Автовосстановление: '+str(exc))
             self.messages.put(('world',self.world.data()))
-            self.messages.put(('retry','Автоматический повтор без пропуска дня: '+str(exc)))
+            self.report_retry('Автоматический повтор без пропуска дня: '+str(exc))
         except Exception as exc:
             from planet.diagnostics import record
             record(ROOT/'logs',exc,'simulation')
@@ -586,10 +598,10 @@ class App:
             self.chronicle_tab=int(action.split(':')[1]);self.learning_scroll=0;self.history_scroll=0;return
         if action=='run':
             self.running=not self.running; self.target_day=None
-            if self.running: self.error=''
+            if self.running: self.error=''; self.runner.retry_count=0; self.retry_after=0
         elif action=='day':
             self.target_day=self.world.day if self.world.in_day else self.world.day+1
-            self.running=True; self.error=''
+            self.running=True; self.error=''; self.runner.retry_count=0; self.retry_after=0
         elif action=='settings':
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
