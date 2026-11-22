@@ -236,7 +236,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             # where actionable facts may need a little more room. Never use
             # that escape hatch on large windows: legacy saves could otherwise
             # expand to 262k tokens and stall prompt prefill for many minutes.
-            if output==0 and window<=90000:
+            if output==0 and 16384<=window<=90000:
                 result=fit(system,context,window,output,bytes_per_token=ratio,allow_estimated_overflow=True)
                 result['context_info']['requested_user_input_tokens']=budget
                 result['context_info']['expanded_for_actionable_data']=True
