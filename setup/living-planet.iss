@@ -1,5 +1,5 @@
-# This is the Inno Setup source script for developers, not the installer executable.
-# End users should launch SETUPGAME.exe from the v8.0.1 release.
+; This is the Inno Setup source script for developers, not the installer executable.
+; End users should launch SETUPGAME.exe from the v8.0.1 release.
 #pragma code_page = 65001
 #define AppVersion "8.0.1"
 #define AppName "Living Planet"
