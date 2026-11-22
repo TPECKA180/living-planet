@@ -1,0 +1,46 @@
+name: Windows EXE release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build-and-release:
+    if: github.ref_type == 'tag'
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: '1'
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install game and packaging dependencies
+        run: |
+          python -m pip install -r requirements.txt pyinstaller pillow
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Build application and portable package
+        run: python tools/build_windows.py
+      - name: Smoke-check the packaged game window
+        shell: powershell
+        run: |
+          $env:SDL_VIDEODRIVER = 'dummy'
+          $env:SDL_AUDIODRIVER = 'dummy'
+          $frame = Join-Path $env:RUNNER_TEMP 'living-planet-v801-smoke.png'
+          .\dist\LivingPlanet\LivingPlanet.exe --screenshot $frame
+          if (-not (Test-Path $frame)) { throw 'The packaged game did not render its startup screen.' }
+      - name: Build clickable installer
+        run: '& "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" setup/living-planet.iss'
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Living Planet 8.0.1 · Windows
+          body_path: RELEASE_NOTES.md
+          files: |
+            dist/installer/LivingPlanet-Setup-8.0.1.exe
+            dist/LivingPlanet-8.0.1-Portable.zip
+          generate_release_notes: false
