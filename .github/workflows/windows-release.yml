@@ -73,27 +73,14 @@ jobs:
           $weights = @(Get-ChildItem -Path '.\models', '.\dist\LivingPlanet' -Filter '*.gguf' -File -Recurse -ErrorAction SilentlyContinue)
           if ($weights.Count -gt 0) { throw 'GGUF model weights must not be present in a public release build.' }
           python -c "import zipfile; z=zipfile.ZipFile('dist/LivingPlanet-8.5.0-Portable.zip'); assert not [n for n in z.namelist() if n.lower().endswith('.gguf')]; assert 'LivingPlanet/SETUPGAME.exe' in z.namelist()"
-      - name: Remove previous v8.5.0 assets before refresh
-        shell: powershell
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $release = gh release view v8.5.0 --repo $env:GITHUB_REPOSITORY --json assets 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            $names = @('SETUPGAME.exe', 'LivingPlanet-Setup-8.5.0.exe', 'LivingPlanet-8.5.0-Portable.zip')
-            foreach ($asset in ($release | ConvertFrom-Json).assets) {
-              if ($asset.name -in $names) {
-                gh release delete-asset v8.5.0 $asset.name --repo $env:GITHUB_REPOSITORY --yes
-                if ($LASTEXITCODE -ne 0) { throw "Could not replace old release asset $($asset.name)." }
-              }
-            }
-          }
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           name: Living Planet 8.5.0 · автономный локальный запуск
           body_path: RELEASE_NOTES.md
+          overwrite_files: true
           files: |
             dist/installer/SETUPGAME.exe
             dist/LivingPlanet-8.5.0-Portable.zip
           generate_release_notes: false
+
