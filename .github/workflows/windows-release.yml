@@ -35,7 +35,11 @@ jobs:
           if ($app.ExitCode -ne 0) { throw "The packaged game exited with code $($app.ExitCode)." }
           if (-not (Test-Path $frame)) { throw 'The packaged game did not render its startup screen.' }
       - name: Build clickable installer
-        run: '& "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" setup/living-planet.iss'
+        shell: powershell
+        run: |
+          $compiler = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $compiler) { throw 'Inno Setup compiler was not found.' }
+          & $compiler.FullName setup/living-planet.iss
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
