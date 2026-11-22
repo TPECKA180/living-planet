@@ -39,7 +39,7 @@ class StrictIsolation:
 
     def prepare_isolated_model(self,model):
         actor=getattr(self,'current_actor',None) or '__service__'
-        desired=int(self.config.get('context_window',98304))
+        desired=int(self.config.get('context_window',262144))
         load_signature=(self.config.get('host'),desired)
         if load_signature!=self.load_signature:
             self.load_limits.clear(); self.load_signature=load_signature

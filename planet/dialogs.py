@@ -125,7 +125,7 @@ def edit_settings(app_root,config,screenshot=None):
     runtime=LocalModelRuntime(app_root); models=runtime.models()
     selected=next((i for i,name in enumerate(models) if name==config.get('model') or Path(name).stem==config.get('model')),0)
     dialog.field('model','Модель из папки models',models[selected] if models else 'Папка models пуста',(34,118,620,38))
-    number_fields=[('context_window','Окно, токены',32768),('max_tokens','Ответ, токены',196608),
+    number_fields=[('context_window','Окно, токены',262144),('max_tokens','Ответ, токены',196608),
                    ('input_tokens','Вход: данные, токены',12000),('context_map_cells','Клеток в промте',4096),
                    ('gpu_layers','Слоёв на видеокарте',99)]
     for i,(key,label,default) in enumerate(number_fields):

@@ -166,7 +166,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         """Match actual server context to the chosen window, not only prompt size."""
         if self.config.get('strict_state_isolation',False): return self.prepare_isolated_model(model)
         self.isolated_signature=None; self.isolated_owner=None
-        desired=int(self.config.get('context_window',98304))
+        desired=int(self.config.get('context_window',262144))
         if not self.config.get('manage_model_context',False): return model,desired
         signature=(self.config.get('host'),desired)
         if signature!=self.load_signature:

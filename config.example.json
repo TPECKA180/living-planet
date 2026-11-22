@@ -6,7 +6,7 @@
   "api_key": "",
   "timeout": 600,
   "temperature": 0.7,
-  "context_window": 32768,
+  "context_window": 262144,
   "max_tokens": 196608,
   "input_tokens": 12000,
   "context_retry_attempts": 8,

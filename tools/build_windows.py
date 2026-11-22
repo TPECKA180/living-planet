@@ -36,6 +36,9 @@ def main():
         '--add-data',f"{ROOT / 'docs/assets/living-planet-logo.png'}{os.pathsep}assets",'main.py')
     if not (APP/'LivingPlanet.exe').is_file():
         raise SystemExit('PyInstaller did not create LivingPlanet.exe')
+    shutil.copytree(ROOT/'docs',APP/'docs',dirs_exist_ok=True)
+    if not (APP/'docs/index.html').is_file():
+        raise SystemExit('The offline help page was not copied into the game folder.')
     shutil.copytree(ROOT/'runtime',APP/'runtime',dirs_exist_ok=True)
     ignored=['*.tmp','*.partial']
     if os.environ.get('LIVING_PLANET_PUBLIC')=='1':ignored.append('*.gguf')

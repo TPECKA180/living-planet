@@ -11,7 +11,7 @@
 | api_key | str | "" |
 | timeout | int | 600 |
 | temperature | float | 0.7 |
-| context_window | int | 32768 |
+| context_window | int | 262144 |
 | max_tokens | int | 196608 |
 | input_tokens | int | 12000 |
 | context_retry_attempts | int | 8 |

@@ -9,9 +9,9 @@ from planet.intelligence import CONTRACTS,action_schema
 
 class CapacityTests(unittest.TestCase):
     def test_defaults_and_one_time_upgrade_restore_requested_limits(self):
-        self.assertEqual(DEFAULTS['input_tokens'],12000);self.assertEqual(DEFAULTS['max_tokens'],196608);self.assertEqual(DEFAULTS['context_window'],32768)
+        self.assertEqual(DEFAULTS['input_tokens'],12000);self.assertEqual(DEFAULTS['max_tokens'],196608);self.assertEqual(DEFAULTS['context_window'],262144)
         cfg=dict(runtime_patch='7.5.0',max_tokens=28000,input_tokens=56000,context_window=196608)
-        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['context_window'],32768);self.assertEqual(cfg['input_tokens'],12000)
+        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['context_window'],262144);self.assertEqual(cfg['input_tokens'],12000)
         cfg['max_tokens']=200000;cfg['input_tokens']=90000;self.assertFalse(upgrade_config(cfg));self.assertEqual(cfg['input_tokens'],90000)
     def test_full_requested_answer_is_sent_without_third_window_cap(self):
         brain=Brain(dict(model='m',stream=False,context_window=262144,max_tokens=131072,input_tokens=56000));calls=[]
@@ -61,7 +61,7 @@ class CapacityTests(unittest.TestCase):
         self.assertEqual(send.call_count,2)
     def test_custom_larger_limits_survive_upgrade(self):
         cfg=dict(runtime_patch='7.5.0',max_tokens=200000,input_tokens=80000,context_window=524288);upgrade_config(cfg)
-        self.assertEqual((cfg['max_tokens'],cfg['input_tokens'],cfg['context_window']),(200000,12000,32768))
+        self.assertEqual((cfg['max_tokens'],cfg['input_tokens'],cfg['context_window']),(200000,12000,262144))
 
 class MechanicsDefenceTests(unittest.TestCase):
     def test_null_or_list_assessment_does_not_block_valid_paid_transfer(self):

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 DEFAULTS=dict(host='http://127.0.0.1:32124/v1',model='',manager_model='',state_models={},
-    api_key='',timeout=600,temperature=.7,context_window=32768,max_tokens=196608,input_tokens=12000,
+    api_key='',timeout=600,temperature=.7,context_window=262144,max_tokens=196608,input_tokens=12000,
     context_retry_attempts=8,decision_repair_attempts=3,context_map_cells=4096,context_history=200,
     context_events=150,context_memories=40,context_messages=200,manage_model_context=False,
     strict_state_isolation=False,external_console=False,stream=True,deep_strategy=True,
@@ -31,5 +31,6 @@ def load_config(root):
 def open_help(root):
     import webbrowser
     path=Path(root)/'docs'/'index.html'
-    if not path.is_file():raise FileNotFoundError('Нет docs/index.html. Откройте README.md или скачайте полную сборку.')
-    return webbrowser.open(path.resolve().as_uri())
+    if not path.is_file():return False
+    webbrowser.open(path.resolve().as_uri())
+    return True

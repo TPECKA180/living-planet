@@ -43,7 +43,7 @@ class LocalModelRuntime:
         if not server.is_file():
             return 'Не найден встроенный runtime: runtime/llama-server.exe.'
         port = int(config.get('local_port', 32124))
-        context = max(16384, int(config.get('context_window', 32768)))
+        context = max(16384, int(config.get('context_window', 262144)))
         gpu_layers = max(0, int(config.get('gpu_layers', 99)))
         log_dir = self.root / 'logs'
         log_dir.mkdir(parents=True, exist_ok=True)

@@ -642,7 +642,8 @@ class App:
             self.status=settings_status if changed else 'Настройки закрыты.'
         elif action=='help':
             from planet.configuration import open_help
-            open_help(ROOT);self.status='Открыта полная справка: подключение, механики и решение проблем.'
+            opened=open_help(ROOT)
+            self.status='Открыта полная справка: подключение, механики и решение проблем.' if opened else 'Не найдена локальная справка docs/index.html.'
         elif action=='export':
             path=self.runner.store.path.parent/'chronicle.txt'
             path.parent.mkdir(exist_ok=True)
@@ -780,7 +781,7 @@ def main():
     config.setdefault('decision_compiler',True)
     config.setdefault('calibrate_context',True)
     config.setdefault('detect_repetition',True)
-    config.setdefault('context_window',196608)
+    config.setdefault('context_window',262144)
     from planet.local_model import LocalModelRuntime
     local_runtime=LocalModelRuntime(ROOT)
     if args.check:
