@@ -10,6 +10,7 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=TPECKA180
 DefaultDirName={localappdata}\Programs\Living Planet
+DisableDirPage=no
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
