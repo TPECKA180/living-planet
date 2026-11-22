@@ -12,9 +12,11 @@ Original Living Planet («Живая планета») was created by TPECKA180;
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![Версия 8.0.1](https://img.shields.io/badge/версия-8.0.1-5CCFB2)
 
-[Скачать Windows EXE](https://github.com/TPECKA180/living-planet/releases/latest) · [Как установить](docs/SETUP.md) · [Галерея: 10 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Проверки](docs/VALIDATION.md)
+[Скачать SETUPGAME.exe — установщик Windows](https://github.com/TPECKA180/living-planet/releases/latest) · [Как установить](docs/SETUP.md) · [Галерея: 10 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Проверки](docs/VALIDATION.md)
 
 > **Обновление 8.0.1 для Windows:** удобный установщик, отдельный переносимый архив и ярлык «Living Planet» с новой пиксельной эмблемой в стиле тёмного фэнтези. Python устанавливать не нужно. Игровые системы и формат миров унаследованы от 8.0.0.
+
+> Для обычной установки запускайте **`SETUPGAME.exe`** из GitHub Releases. Файл `.iss` в исходном коде — сценарий сборки для разработчиков, не установщик.
 
 <p align="center"><img src="docs/assets/living-planet-logo.png" alt="Пиксельная эмблема Living Planet с сияющей планетой и названием игры" width="520"></p>
 
