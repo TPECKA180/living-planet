@@ -229,11 +229,19 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             system=COMPACT_RULES if estimate(COMPACT_RULES)<=max(256,window-output-2048) else TINY_RULES
         from .context import ContextCapacityError
         ratio=getattr(self,'current_token_ratio',2)
-        # Never bypass the configured factual-input budget. The old fallback
-        # could send the full 262k-token window for a legacy save, leaving the
-        # game and its console waiting through minutes of prompt prefill.
-        # Failing before the HTTP request keeps the day and save untouched.
-        return fit(system,context,window,output,bytes_per_token=ratio,input_budget=int(self.config.get('input_tokens',56000)))
+        budget=int(self.config.get('input_tokens',56000))
+        try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=budget)
+        except ContextCapacityError:
+            # Preserve the historical small-window path for compact models,
+            # where actionable facts may need a little more room. Never use
+            # that escape hatch on large windows: legacy saves could otherwise
+            # expand to 262k tokens and stall prompt prefill for many minutes.
+            if output==0 and window<=90000:
+                result=fit(system,context,window,output,bytes_per_token=ratio,allow_estimated_overflow=True)
+                result['context_info']['requested_user_input_tokens']=budget
+                result['context_info']['expanded_for_actionable_data']=True
+                return result
+            raise
 
     def complete(self,system,context,model):
         from .response_io import ResponseTooLarge

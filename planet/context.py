@@ -49,10 +49,9 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
     context=copy.deepcopy(source);cuts={};packing={}
     budget=max(128,window-output-min(1024,max(128,window//8)))
     system_bytes=len(system.encode('utf-8'));sizes={}
-    # Keep a small allowance for JSON framing and differences between this
-    # byte-based estimate and the server tokenizer; never treat it as room to
-    # expand to the whole model window.
-    if input_budget is not None:budget=min(budget,math.ceil(system_bytes/bytes_per_token)+int(input_budget)+256)
+    # Allow a fixed tokenizer-estimate cushion, not a window-sized overflow:
+    # server tokenization can differ from this UTF-8 estimate by about 1k.
+    if input_budget is not None:budget=min(budget,math.ceil(system_bytes/bytes_per_token)+int(input_budget)+1536)
     def refresh(key=None):
         keys=list(context) if key is None else [key]
         if key is None:sizes.clear()
@@ -156,10 +155,10 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
             industry=context['economy'].get('industry')
             if isinstance(industry,dict) and isinstance(industry.get('buildings'),list) and len(industry['buildings'])>8:
                 rows=industry['buildings'];industry['buildings']=rows[:8];cuts['economy.industry.buildings']=len(rows)-8;refresh('economy')
-        if used()>budget and isinstance(context.get('construction'),dict) and isinstance(context['construction'].get('projects'),list) and len(context['construction']['projects'])>8:
+        if used()>budget and isinstance(context.get('construction'),dict) and isinstance(context['construction'].get('projects'),list) and len(context['construction']['projects'])>12:
             rows=context['construction']['projects'];critical=context['construction'].get('critical_projects',[]);ids={p.get('project_id') for p in critical if isinstance(p,dict)}
-            chosen=[p for p in rows if isinstance(p,dict) and p.get('project_id') in ids][:8]
-            chosen_ids={p.get('project_id') for p in chosen};chosen.extend(p for p in rows if isinstance(p,dict) and p.get('project_id') not in chosen_ids and len(chosen)<8)
+            chosen=[p for p in rows if isinstance(p,dict) and p.get('project_id') in ids][:12]
+            chosen_ids={p.get('project_id') for p in chosen};chosen.extend(p for p in rows if isinstance(p,dict) and p.get('project_id') not in chosen_ids and len(chosen)<12)
             context['construction']['projects']=chosen;cuts['construction.projects']=len(rows)-len(chosen);refresh('construction')
         if used()>budget and isinstance(context.get('strategy'),dict) and isinstance(context['strategy'].get('border_targets'),list):
             rows=context['strategy']['border_targets']
