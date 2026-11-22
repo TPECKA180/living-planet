@@ -8,7 +8,7 @@ from .saves import WorldLibrary, WorldLock
 
 def choose_world(app_root,config,screenshot=None):
     app_root=Path(app_root)
-    dialog=Dialog('Живая планета · v8.0.1 · выбрать мир',(1120,820)); pg=dialog.pg
+    dialog=Dialog('Живая планета · v8.5.0 · выбрать мир',(1120,820)); pg=dialog.pg
     path=Path(config.get('saves_directory','saves'))
     if not path.is_absolute(): path=app_root/path
     dialog.field('directory','Папка всех миров · можно вставить путь Ctrl+V',str(path.resolve()),(34,108,850,36))
@@ -62,7 +62,7 @@ def choose_world(app_root,config,screenshot=None):
                     from .dialogs import edit_settings
                     edit_settings(app_root,config)
                     dialog.screen=pg.display.set_mode((1120,820))
-                    dialog.notice='Подключение сохранено. Создайте мир или продолжите свою историю.'
+                    dialog.notice='Модель сохранена. Создайте мир или продолжите свою историю.'
                 elif action=='help':
                     from .configuration import open_help
                     open_help(app_root)
@@ -70,7 +70,7 @@ def choose_world(app_root,config,screenshot=None):
         dialog.screen.fill(BG); dialog.buttons=[]
         dialog.label('ЖИВАЯ ПЛАНЕТА',34,23,font=dialog.title_font)
         dialog.label('Выберите историю, которую хотите продолжить',34,61,MUTED,dialog.small)
-        dialog.button('LM Studio',(730,25,150,35),'settings')
+        dialog.button('Модели GGUF',(730,25,150,35),'settings')
         dialog.button('Справка',(900,25,180,35),'help')
         dialog.draw_fields()
         dialog.button('Применить папку',(904,108,176,36),'directory')

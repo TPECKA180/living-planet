@@ -60,8 +60,8 @@ class InputContextTests(unittest.TestCase):
         self.assertIn(latest,fitted['messages']);self.assertEqual(fitted['construction'],source['construction'])
     def test_upgrade_restores_both_requested_budgets(self):
         cfg=dict(runtime_patch='6.8.3',max_tokens=8192,context_window=98304,local_execution=True,local_chronicle=True)
-        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['input_tokens'],56000)
-        self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['context_window'],262144)
+        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['input_tokens'],12000)
+        self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['context_window'],32768)
         cfg['input_tokens']=40000;self.assertFalse(upgrade_config(cfg));self.assertEqual(cfg['input_tokens'],40000)
     def decision(self,actions):return dict(thinking='Военная проверка.',notes=self.s.notes,plan=self.s.plan,diplomacy=[],actions=actions)
     def test_war_recruitment_template_creates_and_pays_for_real_army(self):

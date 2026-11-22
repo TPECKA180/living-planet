@@ -39,6 +39,7 @@ class Runner:
     def observe(self,kind,text='',**data):
         self.console.emit(kind,text,**data)
         if kind=='status': self.messages.put(('status',text))
+        elif kind=='request_end': self.messages.put(('speed',data.get('tokens_per_second',0)))
 
     def tick(self):
         if self.busy: return
@@ -162,13 +163,19 @@ def settings(config):
 
 
 class App:
-    def __init__(self,world,store,config):
+    def __init__(self,world,store,config,local_runtime=None,startup_status=''):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.0.1 · лаборатория миров')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.5.0 · мир без границ')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
+        icon_path=(ROOT/'assets/living-planet-logo.png') if getattr(sys,'frozen',False) else (ROOT/'docs/assets/living-planet-logo.png')
+        try: pg.display.set_icon(pg.image.load(str(icon_path)))
+        except (FileNotFoundError,pg.error): pass
         self.font=pg.font.SysFont('segoeui',17); self.small=pg.font.SysFont('segoeui',14)
         self.title=pg.font.SysFont('segoeui',30,bold=True); self.medium=pg.font.SysFont('segoeui',21,bold=True)
         self.world=World.restore(world.data()); self.runner=Runner(world,store,config); self.config=config
+        self.local_runtime=local_runtime; self.tokens_per_second=0.0
+        self.model_loading=bool(local_runtime and startup_status.startswith('Загружается'))
+        self.runtime_poll_at=0.0
         self.selected=0; self.tab=0; self.scroll=0; self.running=False; self.target_day=None
         self.status=f'Завершено дней: {world.day-int(world.in_day)}. '+('Продолжим сохранённый общий ход.' if world.in_day else 'Мир готов.'); self.error=''; self.zoom=1.; self.pan=[0.,0.]
         self.drag=None; self.tile=None; self.buttons=[]; self.map_dirty=True; self.map_surface=None
@@ -181,6 +188,7 @@ class App:
         self.focus_unit_id=None; self.preview_key=None; self.preview_route=None; self.map_notice=''
         from planet.text_layout import TextLayout
         self.text_layout=TextLayout()
+        if startup_status:self.status=startup_status
 
     def text(self,text,x,y,color=TEXT,font=None):
         font=font or self.font
@@ -314,8 +322,14 @@ class App:
 
     def draw(self):
         pg=self.pg; width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
+        if self.model_loading and time.monotonic()>=self.runtime_poll_at:
+            self.runtime_poll_at=time.monotonic()+1
+            if self.local_runtime.ready():
+                self.model_loading=False;self.status='Локальная модель загружена и готова.'
+            elif self.local_runtime.process and self.local_runtime.process.poll() is not None:
+                self.model_loading=False;self.status='Не удалось загрузить модель. Подробности в logs/local-model.log.'
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('8.0.1  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
+        self.text('8.5.0  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ВСТРОЕННЫЕ МОДЕЛИ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -325,7 +339,7 @@ class App:
         self.box((width-225,81,max(3,int(195*completed/max(1,len(self.world.states)))),5),ACCENT,2)
         self.button('Пауза' if self.running else 'Наблюдать',(28,99,126,38),'run',self.running)
         self.button('Один день',(164,99,116,38),'day')
-        self.button('LM Studio · F2',(290,99,145,38),'settings')
+        self.button('Модели · F2',(290,99,145,38),'settings')
         self.button('Хроника ↓',(445,99,117,38),'export')
         self.button('Миры',(572,99,80,38),'worlds')
         self.button('Справка · F1',(662,99,125,38),'help')
@@ -583,7 +597,8 @@ class App:
             self.screen.set_clip(None)
         previous=self.screen.get_clip();self.screen.set_clip(None)
         self.box((28,height-29,max(100,width-56),23),(16,24,31),4)
-        self.text(self.status[:max(25,(width-70)//7)],36,height-27,(239,174,91) if self.error else MUTED,self.small)
+        self.text(self.status[:max(25,(width-230)//7)],36,height-27,(239,174,91) if self.error else MUTED,self.small)
+        self.text(f'{self.tokens_per_second:.1f} ток/с',width-186,height-28,ACCENT if self.tokens_per_second else MUTED,self.small)
         self.screen.set_clip(previous)
         for rect,key in self.resource_rects:
             if rect.collidepoint(pg.mouse.get_pos()):
@@ -597,7 +612,10 @@ class App:
     def action(self,action):
         if action in ('run','day') and not (action=='run' and self.running):
             if not self.config.get('model') and not all(self.config.get('state_models',{}).get(s.id) for s in self.world.states if not s.eliminated):
-                self.running=False;self.status='Выберите модель в «LM Studio · F2», затем запустите наблюдение.';return
+                self.running=False;self.status='Положите GGUF-модель в папку models, выберите её в «Модели · F2».';return
+            local_runtime=getattr(self,'local_runtime',None)
+            if local_runtime and not local_runtime.ready():
+                self.running=False;self.status='Подождите: локальная модель ещё загружается.';return
         if action.startswith('bottom:'):
             self.chronicle_tab=int(action.split(':')[1]);self.learning_scroll=0;self.history_scroll=0;return
         if action=='run':
@@ -610,12 +628,18 @@ class App:
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v8.0.1 · лаборатория миров')
+            self.pg.display.set_caption('Живая планета · v8.5.0 · мир без границ')
             if changed:
+                settings_status='Настройки сохранены. Можно продолжить.'
+                if self.local_runtime:
+                    settings_status=self.local_runtime.start(self.config)
+                    self.model_loading=settings_status.startswith('Загружается')
+                    self.runtime_poll_at=0
+                    (ROOT/'config.json').write_text(json.dumps(self.config,ensure_ascii=False,indent=2),encoding='utf-8')
                 enabled=self.config.get('external_console',True)
                 if not enabled: self.runner.console.close()
                 self.runner.console.enabled=enabled
-            self.status='Настройки сохранены. Можно продолжить.' if changed else 'Настройки закрыты.'
+            self.status=settings_status if changed else 'Настройки закрыты.'
         elif action=='help':
             from planet.configuration import open_help
             open_help(ROOT);self.status='Открыта полная справка: подключение, механики и решение проблем.'
@@ -660,6 +684,7 @@ class App:
 
     def close(self):
         self.runner.console.close()
+        if self.local_runtime:self.local_runtime.stop()
         for child in list(self.relation_windows.values())+list(self.industry_windows.values()):
             if child.poll() is None:child.terminate()
         self.pg.quit()
@@ -697,7 +722,8 @@ class App:
                 elif kind=='status': self.status=value
                 elif kind=='activity': self.activity=value
                 elif kind=='retry': self.status=value; self.retry_after=time.monotonic()+5; self.error=''
-                elif kind=='error': self.error=value; self.status='Ошибка LM Studio / решения'; self.running=False
+                elif kind=='speed': self.tokens_per_second=max(0.0,float(value or 0))
+                elif kind=='error': self.error=value; self.status='Ошибка модели / решения'; self.running=False
                 elif kind=='done': self.runner.busy=False
             for event in pg.event.get():
                 if event.type==pg.QUIT: opened=False
@@ -738,9 +764,9 @@ class App:
 
 
 def main():
-    parser=argparse.ArgumentParser(description='Живая планета · LM Studio')
+    parser=argparse.ArgumentParser(description='Живая планета · автономные модели GGUF')
     parser.add_argument('--screenshot',help='Отрисовать один кадр и выйти')
-    parser.add_argument('--check',action='store_true',help='Проверить подключение и список моделей')
+    parser.add_argument('--check',action='store_true',help='Проверить локальные модели')
     args=parser.parse_args()
     from planet.configuration import load_config
     config=load_config(ROOT)
@@ -755,8 +781,10 @@ def main():
     config.setdefault('calibrate_context',True)
     config.setdefault('detect_repetition',True)
     config.setdefault('context_window',196608)
+    from planet.local_model import LocalModelRuntime
+    local_runtime=LocalModelRuntime(ROOT)
     if args.check:
-        print('\n'.join(Brain(config).models())); return
+        print('\n'.join(local_runtime.models()) or 'В папке models пока нет GGUF-моделей.'); return
     if args.screenshot:
         import tempfile
         with tempfile.TemporaryDirectory() as temp:
@@ -767,7 +795,9 @@ def main():
         selected=choose_world(ROOT,config)
         if selected is None: break
         world,store=selected; config['states']=len(world.states)
-        try: switch=App(world,store,config).loop()
+        startup_status=local_runtime.start(config)
+        (ROOT/'config.json').write_text(json.dumps(config,ensure_ascii=False,indent=2),encoding='utf-8')
+        try: switch=App(world,store,config,local_runtime,startup_status).loop()
         finally: store.session_lock.close()
         if not switch: break
 

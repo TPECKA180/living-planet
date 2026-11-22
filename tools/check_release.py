@@ -3,7 +3,7 @@ from pathlib import Path
 import ast,hashlib,json,re
 ROOT=Path(__file__).resolve().parents[1]
 ROOT_FILES={'AGENTS.md','main.py','README.md','CHANGELOG.md','RELEASE_NOTES.md','SETUPGAME.exe','CONTRIBUTING.md','requirements.txt','config.example.json','install.bat','run.bat','.gitignore','.gitattributes'}
-FOLDERS={'planet','tests','docs','tools','.github','setup'}
+FOLDERS={'planet','tests','docs','tools','.github','setup','models'}
 FORBIDDEN={'__pycache__','.git','.venv','saves','data','logs','work','backups','states'}
 
 def public_files(root=ROOT):
@@ -27,7 +27,7 @@ def check(root=ROOT):
             if rel!='SETUPGAME.exe':errors.append('Unexpected executable: '+rel)
             continue
         if path.suffix in ('.png','.ico'):
-            if rel not in {'docs/assets/'+name+'.png' for name in ('interface','world','archipelago','closeup','construction','technology','relations','industry','factories','trade','history','living-planet-logo')} and rel!='docs/assets/living-planet.ico':errors.append('Unexpected image: '+rel)
+            if rel not in {'docs/assets/'+name+'.png' for name in ('interface','world','archipelago','closeup','construction','technology','relations','industry','factories','trade','history','living-planet-logo','models')} and rel!='docs/assets/living-planet.ico':errors.append('Unexpected image: '+rel)
             continue
         content=path.read_text(encoding='utf-8-sig')
         if re.search(r'(?:gh[pousr]_[A-Za-z0-9]{25,}|github_pat_[A-Za-z0-9_]{25,}|sk-[A-Za-z0-9_-]{25,})',content):errors.append('Possible credential: '+rel)

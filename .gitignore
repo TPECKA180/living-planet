@@ -5,6 +5,9 @@ config.json
 saves/
 data/
 logs/
+models/*.gguf
+!models/README.md
+runtime/
 work/
 .venv/
 venv/

@@ -1,95 +1,45 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/living-planet-logo.png" alt="Living Planet — пиксельная эмблема в стиле тёмного фэнтези" width="640">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/living-planet-logo.png" alt="Living Planet — пиксельная эмблема в стиле тёмного фэнтези" width="640">
 </p>
 
-# Living Planet 8.0.1 · Windows Edition
+# Living Planet 8.5.0 · автономная Windows-сборка
 
-**Живые государства. Локальные нейросети. Мир, который развивается из настоящих решений.**
+**Живая планета теперь запускает локальную GGUF-модель сама. LM Studio, API-ключ и отдельный модельный сервер не нужны.**
 
-Обновление 8.0.1 упаковывает игру в простое Windows-приложение с собственной пиксельной эмблемой Living Planet. Для установки скачайте и дважды нажмите **`SETUPGAME.exe`**: откроется графический мастер, где можно выбрать ярлык на рабочем столе. Готовый установщик теперь легко отличить от `.iss`-исходника в репозитории. Для тех, кто не хочет ничего устанавливать, доступен переносимый архив.
+## Скачать
 
-## Скачать и запустить
+- **Установщик:** `SETUPGAME.exe` — удобный мастер установки, выбор ярлыка с фирменной иконкой.
+- **Переносимая версия:** `LivingPlanet-8.5.0-Portable.zip` — распакуйте и запустите `LivingPlanet/LivingPlanet.exe`.
 
-### Рекомендуется: установщик
+Оба пакета включают приложение, пиксельную иконку Living Planet и официальный Windows Vulkan runtime llama.cpp. Веса модели в публичный релиз не включены: добавьте совместимый файл `.gguf` в `models` рядом с игрой и выберите его через **Модели · F2**. Уведомления о сторонних компонентах находятся в [THIRD_PARTY_NOTICES.md](https://github.com/TPECKA180/living-planet/blob/v8.5.0/docs/THIRD_PARTY_NOTICES.md).
 
-Скачайте **[`SETUPGAME.exe` из корня репозитория](https://github.com/TPECKA180/living-planet/raw/refs/heads/main/SETUPGAME.exe)** или возьмите тот же файл в разделе Assets ниже. Запустите его двойным щелчком, выберите, нужен ли ярлык на рабочем столе; ярлык меню «Пуск» будет добавлен автоматически. Установка выполняется для текущей учётной записи Windows и не требует прав администратора.
+## Что нового
 
-### Без установки: переносимая версия
+- Встроен локальный запуск моделей из папки `models`; игра сама поднимает и завершает inference runtime.
+- Удалены шаги подключения к LM Studio, ввод адреса сервера и API-ключа. Настройки модели адаптированы под локальное окно контекста и слои GPU.
+- В интерфейс добавлена компактная скорость генерации в токенах в секунду.
+- Исправлены значки окна приложения и ярлыков: обе сборки используют пиксельную эмблему проекта.
+- Существующие миры и сохранения остаются в прежнем формате; игровой движок и баланс не менялись.
 
-Скачайте **`LivingPlanet-8.0.1-Portable.zip`**, распакуйте его в обычную папку, куда Windows разрешает записывать файлы, и откройте `LivingPlanet/LivingPlanet.exe`. Не запускайте EXE прямо из ZIP.
+## Первый запуск
 
-**Python и pygame устанавливать не требуется.** При первом запуске приложение создаёт собственные настройки и папку новых сохранений рядом с установленной программой.
+1. Установите игру через `SETUPGAME.exe` или распакуйте переносимый архив.
+2. Скопируйте совместимую модель формата GGUF в папку `models` рядом с `LivingPlanet.exe`.
+3. Нажмите **Модели · F2**, выберите файл и сохраните настройки.
+4. Создайте мир и запустите один день либо наблюдение.
 
-`setup/living-planet.iss` в исходном коде — сценарий компиляции для разработчиков, а не запускаемый установщик. Для обычной установки используйте именно **`SETUPGAME.exe`** из Assets.
+Большая модель может загружаться несколько минут. Если не хватает памяти, уменьшите размер контекста или число слоёв GPU в настройках. Подробности ошибок доступны в `logs/local-model.log`.
 
-## Что изменилось
+## Галерея
 
-- Готовое приложение `LivingPlanet.exe`, собранное для Windows 64-bit.
-- Установщик с фирменной иконкой EXE, ярлыка и удаления программы.
-- Ярлык в меню «Пуск» и необязательный ярлык на рабочем столе.
-- ZIP-версия для запуска без установки.
-- Поддержка игровых окон и консоли потока модели в упакованной версии.
-- Новая оригинальная пиксельная эмблема: светящаяся планета, тёмный лес, средневековая арка и надпись **LIVING PLANET**.
-- Механики симуляции, экономика, промпты, контракты решений и формат сохранений 6 унаследованы от 8.0.0 без изменений.
+![Главный экран Living Planet 8.5.0: карта, государства и скорость локальной генерации](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/interface.png)
 
-## Первое подключение
+![Окно выбора локальной GGUF-модели и настройки контекста](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/models.png)
 
-Релиз содержит игру, **но не содержит** нейросетевую модель, её веса, API-ключ или пользовательские сохранения. Установите LM Studio либо другой совместимый сервер модели и отдельно загрузите подходящую языковую модель. Затем запустите игру, укажите сервер в настройках и создайте новый мир. Пошаговая инструкция: [настройка и первый запуск](https://github.com/TPECKA180/living-planet/blob/v8.0.1/docs/SETUP.md).
+![Пиксельная карта Living Planet с островами и отрядами](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/archipelago.png)
 
-Сохранения в репозитории отсутствуют. Игра создаёт новую локальную папку сохранений при запуске — личные миры не попадают в программу установки или публичный архив.
+![Экономика государства и производственные цепочки](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/industry.png)
 
-## Галерея проекта
+![Технологии и развитие индустриальной эпохи](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/technology.png)
 
-Ниже — настоящие экраны игры. Иллюстрации подготовлены на демонстрационных мирах, без личных сохранений и запросов к нейросети.
-
-### 01 · Карта и государства
-
-![Игровой экран: карта планеты, государства, запасы и летопись](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/interface.png)
-
-### 02 · Создание мира
-
-![Параметры нового мира](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/world.png)
-
-### 03 · Архипелаг
-
-![Мир с островами и морскими границами](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/archipelago.png)
-
-### 04 · Детали живого мира
-
-![Увеличенный фрагмент карты](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/closeup.png)
-
-### 05 · Строительство
-
-![Экран строительства и развития территории](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/construction.png)
-
-### 06 · Исследования
-
-![Технологии и исследовательские решения](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/technology.png)
-
-### 07 · Отношения
-
-![Дипломатия и отношения между государствами](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/relations.png)
-
-### 08 · Индустриальная эпоха
-
-![Индустриальный экран и современная экономика](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/industry.png)
-
-### 09 · Производство
-
-![Современные фабрики и производственные цепочки](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/factories.png)
-
-### 10 · Торговля
-
-![Торговля ресурсами между государствами](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/trade.png)
-
-### 11 · История мира
-
-![Летопись и события планеты](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.0.1/docs/assets/history.png)
-
-## Документация
-
-- [Установка и первый запуск](https://github.com/TPECKA180/living-planet/blob/v8.0.1/docs/SETUP.md)
-- [Галерея скриншотов](https://github.com/TPECKA180/living-planet/blob/v8.0.1/docs/SCREENSHOTS.md)
-- [Игровое руководство](https://github.com/TPECKA180/living-planet/blob/v8.0.1/docs/GAME_GUIDE.md)
-- [Что входит в проект и его ограничения](https://github.com/TPECKA180/living-planet/blob/v8.0.1/docs/LIMITS.md)
-- [История изменений](https://github.com/TPECKA180/living-planet/blob/v8.0.1/CHANGELOG.md)
+Скриншоты показывают демонстрационные миры и локальные настройки без личных сохранений.

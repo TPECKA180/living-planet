@@ -7,7 +7,7 @@ flowchart LR
     UI[Pygame / наблюдатель] --> Runner[Рабочий поток Runner]
     Runner --> Context[World.context / личные факты]
     Context --> Budget[Бюджет и точная упаковка]
-    Budget --> LM[LM Studio / chat completions]
+    Budget --> LM[Встроенный llama.cpp / локальный GGUF]
     LM --> Decision[Проверка JSON и владельца]
     Decision --> Prepare[Локальная подготовка]
     Prepare --> Pending[Сохранённые решения всех стран]

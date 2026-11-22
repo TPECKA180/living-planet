@@ -1,19 +1,19 @@
 # Все параметры конфигурации
 
-Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 8.0.1; они не взяты с компьютера автора.
+Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 8.5.0 со встроенным llama.cpp и локальными GGUF-моделями.
 
 | Ключ | Тип | По умолчанию |
 | --- | --- | --- |
-| host | str | "http://localhost:1234/v1" |
+| host | str | "http://127.0.0.1:32124/v1" |
 | model | str | "" |
 | manager_model | str | "" |
 | state_models | dict | {} |
 | api_key | str | "" |
 | timeout | int | 600 |
 | temperature | float | 0.7 |
-| context_window | int | 262144 |
+| context_window | int | 32768 |
 | max_tokens | int | 196608 |
-| input_tokens | int | 56000 |
+| input_tokens | int | 12000 |
 | context_retry_attempts | int | 8 |
 | decision_repair_attempts | int | 3 |
 | context_map_cells | int | 4096 |
@@ -21,9 +21,9 @@
 | context_events | int | 150 |
 | context_memories | int | 40 |
 | context_messages | int | 200 |
-| manage_model_context | bool | true |
-| strict_state_isolation | bool | true |
-| external_console | bool | true |
+| manage_model_context | bool | false |
+| strict_state_isolation | bool | false |
+| external_console | bool | false |
 | stream | bool | true |
 | deep_strategy | bool | true |
 | review_relations | bool | true |
@@ -36,7 +36,9 @@
 | reflective_learning | bool | true |
 | local_execution | bool | true |
 | local_chronicle | bool | true |
-| runtime_patch | str | "8.0.1" |
+| runtime_patch | str | "8.5.0" |
+| gpu_layers | int | 99 |
+| local_port | int | 32124 |
 | response_max_bytes | int | 33554432 |
 | saves_directory | str | "saves" |
 | manager_every | int | 10 |
@@ -46,10 +48,10 @@
 
 ## Связь лимитов
 
-`context_window` — общее запрошенное окно; `input_tokens` — желаемый бюджет фактов; `max_tokens` — верхний предел ответа. max_tokens отправляется как верхний предел (не ниже 110000) и не резервируется целиком при упаковке входа. Фактическая суммарная длина входа и выхода всё равно ограничена подтверждённым окном сервера. Каскадное уменьшение резерва отключено. В 8.0.0 для неполного JSON с length разрешена одна восстановительная попытка в пределах существующего бюджета запросов; затем ошибка останавливает ход. Это не обещание выделить неподдерживаемую память.
+`context_window` — окно локального движка; `input_tokens` — целевой бюджет фактов; `max_tokens` — верхний предел генерации. Уменьшите окно, если модель не помещается в видеопамять или память компьютера. `gpu_layers=0` использует CPU; большее значение переносит больше слоёв на GPU. `local_port` — внутренний loopback-порт, к которому игра подключается автоматически.
 
 ## Режимы
 
-`strict_state_isolation=true` требует нативного LM Studio API: выгрузка и загрузка чистого экземпляра между владельцами. `manage_model_context` управляет загрузкой вне строгого режима. Для стороннего OpenAI-совместимого сервера без этих методов оба параметра выключают; такой режим не обеспечивает серверную проверку выгрузки. `local_execution` и `local_chronicle` оставляют подготовку приказов и главы локальными. Отключение возвращает дополнительные запросы. `external_console` открывает отдельную консоль только в Windows. `response_max_bytes` ограничивает принимаемый ответ, а не контекст. Остальные архивные лимиты задают максимум истории, передаваемой в запрос, а не срок хранения сохранения.
+Модель выбирается по имени файла `.gguf` в папке `models`; сетевой адрес и ключ не используются. Запросы выполняются локально и последовательно, в контекст передаются данные активного государства. `external_console` открывает отдельное окно потока только в Windows. `response_max_bytes` ограничивает размер ответа, а не окно контекста. Другие лимиты истории задают объём фактов в запросе, но не срок хранения сохранения.
 
 [Подробно о лимитах и памяти](LIMITS.md).

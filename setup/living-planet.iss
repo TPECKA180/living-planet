@@ -1,7 +1,7 @@
 ; This is the Inno Setup source script for developers, not the installer executable.
-; End users should launch SETUPGAME.exe from the v8.0.1 release.
+; End users launch SETUPGAME.exe for the current Windows release.
 #pragma code_page = 65001
-#define AppVersion "8.0.1"
+#define AppVersion "8.5.0"
 #define AppName "Living Planet"
 
 [Setup]
@@ -32,8 +32,8 @@ Name: "desktopicon"; Description: "Создать ярлык на рабочем
 Source: "..\dist\LivingPlanet\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\LivingPlanet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\assets\living-planet.ico"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\LivingPlanet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\assets\living-planet.ico"; Tasks: desktopicon
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\LivingPlanet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\_internal\assets\living-planet.ico"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\LivingPlanet.exe"; WorkingDir: "{app}"; IconFilename: "{app}\_internal\assets\living-planet.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\LivingPlanet.exe"; Description: "Запустить {#AppName}"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent

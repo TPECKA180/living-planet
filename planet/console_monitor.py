@@ -35,9 +35,9 @@ def main():
         sys.stderr=io.TextIOWrapper(open('CONOUT$','wb'),encoding='utf-8',errors='replace',line_buffering=True)
     else:
         sys.stdout.reconfigure(encoding='utf-8',errors='replace')
-    if os.name=='nt': ctypes.windll.kernel32.SetConsoleTitleW('Живая планета | прямая трансляция LM Studio')
+    if os.name=='nt': ctypes.windll.kernel32.SetConsoleTitleW('Живая планета | поток локальной модели')
     path=Path(sys.argv[1]); pid=int(sys.argv[2]); offset=int(sys.argv[3])
-    print('ЖИВАЯ ПЛАНЕТА · LM STUDIO · ПОТОК ГЕНЕРАЦИИ\n')
+    print('ЖИВАЯ ПЛАНЕТА · ЛОКАЛЬНАЯ МОДЕЛЬ · ПОТОК ГЕНЕРАЦИИ\n')
     print('Здесь выводятся полученные от сервера reasoning и ответ.\n'
           'Если модель не передаёт reasoning, будет показан только её ответ.\n'
           'Полоса показывает готовность государств общего дня, а не выдуманный процент генерации.\n',flush=True)

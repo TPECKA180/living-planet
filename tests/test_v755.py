@@ -66,7 +66,8 @@ class OutputCeilingTests(unittest.TestCase):
         before=copy.deepcopy(cfg);upgrade_config(cfg)
         self.assertEqual(cfg['max_tokens'],110000)
         for k in before:
-            if k not in ('runtime_patch','max_tokens'):self.assertEqual(cfg[k],before[k])
+            if k not in ('runtime_patch','max_tokens','input_tokens','context_window','host','manage_model_context','strict_state_isolation','api_key'):self.assertEqual(cfg[k],before[k])
+        self.assertEqual(cfg['input_tokens'],12000);self.assertEqual(cfg['context_window'],32768);self.assertEqual(cfg['host'],'http://127.0.0.1:32124/v1')
         brain=Brain(cfg)
         with patch.object(brain,'stream_request',return_value=answer()) as send:brain.complete('JSON',{},'m')
         self.assertEqual(send.call_args.args[0]['max_tokens'],110000)

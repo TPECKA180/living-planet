@@ -99,7 +99,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     for field,kind in (('reasoning_content','reasoning'),('reasoning','reasoning'),('content','content')):
                         if isinstance(message.get(field),str): self.emit(kind,message[field])
                     return result
-                fragments=[]; finish=None; usage={}; ended=False; pending=[]; recent=''; repetition_check=0
+                fragments=[]; finish=None; usage={}; ended=False; pending=[]; recent=''; repetition_check=0; generation_started=None
                 from .generation_recovery import ReasoningWatch
                 reasoning_watch=ReasoningWatch()
                 for line in stream_lines(response,limit):
@@ -115,11 +115,13 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                             delta=choice.get('delta',{})
                             reasoning=delta.get('reasoning_content') or delta.get('reasoning')
                             if isinstance(reasoning,str):
+                                if reasoning and generation_started is None:generation_started=time.monotonic()
                                 broadcast('reasoning',reasoning)
                                 if self.config.get('detect_repetition',True) and reasoning_watch.feed(reasoning):
                                     raise RepeatedOutput('Повторяющийся текст в reasoning сервера')
                             content=delta.get('content')
                             if isinstance(content,str):
+                                if content and generation_started is None:generation_started=time.monotonic()
                                 fragments.append(content); broadcast('content',content)
                                 recent=(recent+content)[-2000:]; repetition_check+=len(content)
                                 if repetition_check>=256 and self.config.get('detect_repetition',True):
@@ -129,14 +131,16 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                                         exc.field=unfinished_field(''.join(fragments))
                                         raise exc
                             if choice.get('finish_reason'): finish=choice['finish_reason']; ended=True
-                if not ended: raise RuntimeError('Поток LM Studio оборвался до завершения ответа; ход не применён')
-                return dict(choices=[dict(message=dict(content=''.join(fragments)),finish_reason=finish or 'stop')],usage=usage)
+                if not ended: raise RuntimeError('Поток модели оборвался до завершения ответа; ход не применён')
+                result=dict(choices=[dict(message=dict(content=''.join(fragments)),finish_reason=finish or 'stop')],usage=usage)
+                if generation_started is not None:result['generation_seconds']=max(.001,time.monotonic()-generation_started)
+                return result
         except (ValueError,KeyError,TypeError,IndexError,AttributeError) as exc:
-            raise RuntimeError(f'Некорректный поток LM Studio; неполное решение не применено: {exc}') from exc
+            raise RuntimeError(f'Некорректный поток модели; неполное решение не применено: {exc}') from exc
         except urllib.error.HTTPError as exc:
-            raise RuntimeError(f'LM Studio HTTP {exc.code}: {exc.read(4096).decode(errors="replace")[:4000]}') from exc
+            raise RuntimeError(f'Локальный движок HTTP {exc.code}: {exc.read(4096).decode(errors="replace")[:4000]}') from exc
         except (urllib.error.URLError,TimeoutError) as exc:
-            raise RuntimeError(f'Ошибка потока LM Studio: {exc}') from exc
+            raise RuntimeError(f'Ошибка потока локальной модели: {exc}') from exc
         finally:flush()
 
     def request(self,path,payload=None):
@@ -151,9 +155,9 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             with urllib.request.urlopen(request,timeout=self.config.get('timeout',600)) as response:
                 return read_json(response,response_limit(self.config))
         except urllib.error.HTTPError as exc:
-            raise RuntimeError(f'LM Studio HTTP {exc.code}: {exc.read(1024).decode(errors="replace")[:500]}') from exc
+            raise RuntimeError(f'Локальный движок HTTP {exc.code}: {exc.read(1024).decode(errors="replace")[:500]}') from exc
         except (urllib.error.URLError,TimeoutError) as exc:
-            raise RuntimeError(f'Нет ответа LM Studio: {exc}. Проверьте сервер и адрес в настройках.') from exc
+            raise RuntimeError(f'Нет ответа локального движка: {exc}. Проверьте, что модель запущена.') from exc
 
     def models(self):
         return [m['id'] for m in self.request('/models')['data']]
@@ -169,7 +173,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             self.load_limits.clear(); self.load_signature=signature
         listing=self.request('/api/v1/models')['models']
         info=next((m for m in listing if m['key']==model or any(i['id']==model for i in m.get('loaded_instances',[]))),None)
-        if info is None: raise ValueError(f'Модель {model} не найдена в LM Studio')
+        if info is None: raise ValueError(f'Модель {model} не найдена в локальном движке')
         if info.get('type')!='llm': raise ValueError('Для государства нужна текстовая модель')
         maximum=info.get('max_context_length')
         desired=min(desired,self.load_limits.get(info['key'],desired))
@@ -207,7 +211,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             raise
         actual=loaded.get('load_config',{}).get('context_length')
         if not isinstance(actual,int) or actual<=0:
-            raise ValueError('Сервер не подтвердил выбранный контекст. Проверьте настройки загрузки LM Studio.')
+            raise ValueError('Локальный движок не подтвердил выбранный контекст.')
         if actual<desired:
             self.load_limits[info['key']]=actual
             self.emit('status',f'Сервер выделил {actual} токенов. Уменьшаем размер запроса автоматически.')
@@ -227,7 +231,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         ratio=getattr(self,'current_token_ratio',2)
         try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=int(self.config.get('input_tokens',56000)))
         except ContextCapacityError:
-            # 28000 is the desired user-data budget, not permission to erase facts.
+            # The configured factual budget is not permission to erase facts.
             # A byte estimate is not a tokenizer. If the configured factual
             # budget fits this window, let LM Studio validate a protected core
             # that only the estimate considers too large; never delete facts
@@ -254,8 +258,8 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         repair=None;envelope_error=None;repetitions=0;length_retries=0
         for attempt in range(attempts):
             # max_tokens is a server-side generation ceiling, not an allocation
-            # that must evict the factual input before a request is even sent.
-            # LM Studio accepts a ceiling above the remaining context capacity.
+            # that must evict factual input before a request is sent. The bundled
+            # local server still needs a ceiling that fits its context window.
             output=max(110000,int(self.config.get('max_tokens',196608)))
             actual_system=system
             desired_input=max(1024,int(self.config.get('input_tokens',56000)))
@@ -276,7 +280,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             from .context import ContextCapacityError
             try:fitted=self.fit_context(actual_system,payload_context,window,0)
             except ContextCapacityError as exc:
-                raise GenerationStalled('Входные данные не помещаются в подтверждённое окно LM Studio. Предел ответа не уменьшен; автоматическая регенерация остановлена без пропуска дня. '+str(exc)) from exc
+                raise GenerationStalled('Входные данные не помещаются в окно контекста. Предел ответа не уменьшен; автоматическая регенерация остановлена без пропуска дня. '+str(exc)) from exc
             fitted['context_info']['server_output_limit']=output
             self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, вход до {desired_input} + правила, предел ответа {output} токенов (доступная длина зависит от оставшегося окна) · попытка {attempt+1}',window=window,requested_output=output,actual_output=output,estimated_remaining_tokens=max(0,window-fitted['context_info']['estimated_input_tokens']-2048),estimated_input=fitted['context_info']['estimated_input_tokens'])
             if fitted['context_info']['trimmed']:
@@ -286,6 +290,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 temperature=self.config.get('temperature',.7),max_tokens=output,stream=self.config.get('stream',True))
             if payload['stream'] and self.stream_usage_support.get(model,True):payload['stream_options']=dict(include_usage=True)
             if response_schema and self.config.get('structured_reviews',True) and self.schema_support.get(model,True): payload['response_format']=response_schema
+            request_started=time.monotonic()
             try:
                 response=self.stream_request(payload) if payload['stream'] else self.request('/chat/completions',payload)
             except ResponseTooLarge as exc:
@@ -312,7 +317,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     continue
                 if not context_error(exc): self.emit('error',str(exc)); raise
                 if fitted['context_info'].get('estimated_overflow_tokens'):
-                    raise GenerationStalled('LM Studio подтвердил, что вход не помещается в загруженное окно. Предел ответа не уменьшен; повтор того же запроса остановлен. '+str(exc)) from exc
+                    raise GenerationStalled('Локальный движок подтвердил, что вход не помещается в окно. Предел ответа не уменьшен; повтор того же запроса остановлен. '+str(exc)) from exc
                 self.token_ratios.pop(model,None); self.current_token_ratio=2
                 window=max(2048,int(window*.55)); self.context_limits[model]=window
                 self.emit('status',f'Переполнение: сокращаем запрос до бюджета {window} токенов и повторяем тот же ход.')
@@ -324,7 +329,14 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             envelope_error=None
             usage=response.get('usage') or {}
             if not isinstance(usage,dict):usage={}
-            self.emit('request_end','Ответ получен. '+json.dumps(usage,ensure_ascii=False))
+            generated=usage.get('completion_tokens')
+            elapsed=response.get('generation_seconds')
+            if not isinstance(elapsed,(int,float)) or elapsed<=0:
+                timing=response.get('timings') or {}
+                predicted_ms=timing.get('predicted_ms') if isinstance(timing,dict) else None
+                elapsed=max(.001,predicted_ms/1000 if isinstance(predicted_ms,(int,float)) and predicted_ms>0 else time.monotonic()-request_started)
+            speed=(generated/elapsed) if type(generated) is int and generated>0 else 0.0
+            self.emit('request_end','Ответ получен. '+json.dumps(usage,ensure_ascii=False),tokens_per_second=speed)
             prompt_tokens=usage.get('prompt_tokens')
             if self.config.get('calibrate_context',False) and type(prompt_tokens) is int and prompt_tokens>0:
                 byte_count=sum(len(m['content'].encode('utf-8')) for m in payload['messages'])
@@ -343,7 +355,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     repair=dict(error='Сервер завершил неполный ответ по длине. Черновик исключён.',instruction='Верни один полный JSON без повторяющихся объяснений; сохрани конкретные приказы и память.')
                     self.emit('status','Ответ остановлен сервером по длине. Один восстановительный запрос с прежними лимитами; черновик не применяется.')
                     continue
-                raise GenerationStalled(f'LM Studio остановил ответ по длине: запрошено {output}, окно {window}, фактический вход {prompt_tokens or "не сообщён"}. Неполный JSON не применён. Повтор того же запроса автоматически НЕ запускается; для более длинного ответа требуется большее загруженное окно или устранение зацикливания модели. День и готовые решения сохранены.')
+                raise GenerationStalled(f'Локальный движок остановил ответ по длине: запрошено {output}, окно {window}, фактический вход {prompt_tokens or "не сообщён"}. Неполный JSON не применён. День и готовые решения сохранены.')
             content=choice['message'].get('content')
             if not isinstance(content,str):
                 repair=dict(error='Модель вернула пустой/нетекстовый ответ',instruction='Верни полный JSON-объект в content, без вызовов инструментов.')
@@ -581,7 +593,7 @@ trust — целое -100..100; stance — neutral/friend/rival/enemy; trade_pol
             self.emit('status','Ответ для досье некорректен. Прежняя оценка сохранена; игровой ход продолжится.')
         finally: self.active=previous
         return decision
-  
+
 
     def manager(self,world):
         self.bind_actor('__manager__')
