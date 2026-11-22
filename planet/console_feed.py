@@ -19,9 +19,13 @@ class ConsoleFeed:
         self.path.parent.mkdir(parents=True,exist_ok=True)
         offset=self.path.stat().st_size if self.path.exists() else 0
         executable=Path(sys.executable)
-        if executable.name.lower()=='pythonw.exe': executable=executable.with_name('python.exe')
-        self.process=subprocess.Popen([str(executable),'-u',str(Path(__file__).with_name('console_monitor.py')),
-            str(self.path.resolve()),str(os.getpid()),str(offset)],creationflags=subprocess.CREATE_NEW_CONSOLE)
+        if getattr(sys,'frozen',False):
+            command=[str(executable),'--living-planet-window','console',str(self.path.resolve()),str(os.getpid()),str(offset)]
+        else:
+            if executable.name.lower()=='pythonw.exe': executable=executable.with_name('python.exe')
+            command=[str(executable),'-u',str(Path(__file__).with_name('console_monitor.py')),
+                     str(self.path.resolve()),str(os.getpid()),str(offset)]
+        self.process=subprocess.Popen(command,creationflags=subprocess.CREATE_NEW_CONSOLE,cwd=Path(executable).resolve().parent)
 
     def emit(self,kind,text='',**data):
         if not self.enabled: return

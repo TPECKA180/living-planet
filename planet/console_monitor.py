@@ -2,6 +2,7 @@
 import ctypes
 import json
 import os
+import io
 from pathlib import Path
 import re
 import sys
@@ -28,7 +29,12 @@ def parent_alive(pid):
 
 
 def main():
-    sys.stdout.reconfigure(encoding='utf-8',errors='replace')
+    if sys.stdout is None:
+        ctypes.windll.kernel32.AllocConsole()
+        sys.stdout=io.TextIOWrapper(open('CONOUT$','wb'),encoding='utf-8',errors='replace',line_buffering=True)
+        sys.stderr=io.TextIOWrapper(open('CONOUT$','wb'),encoding='utf-8',errors='replace',line_buffering=True)
+    else:
+        sys.stdout.reconfigure(encoding='utf-8',errors='replace')
     if os.name=='nt': ctypes.windll.kernel32.SetConsoleTitleW('Живая планета | прямая трансляция LM Studio')
     path=Path(sys.argv[1]); pid=int(sys.argv[2]); offset=int(sys.argv[3])
     print('ЖИВАЯ ПЛАНЕТА · LM STUDIO · ПОТОК ГЕНЕРАЦИИ\n')

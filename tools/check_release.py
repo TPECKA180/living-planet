@@ -2,8 +2,8 @@
 from pathlib import Path
 import ast,hashlib,json,re
 ROOT=Path(__file__).resolve().parents[1]
-ROOT_FILES={'AGENTS.md','main.py','README.md','CHANGELOG.md','CONTRIBUTING.md','requirements.txt','config.example.json','install.bat','run.bat','.gitignore','.gitattributes'}
-FOLDERS={'planet','tests','docs','tools','.github'}
+ROOT_FILES={'AGENTS.md','main.py','README.md','CHANGELOG.md','RELEASE_NOTES.md','CONTRIBUTING.md','requirements.txt','config.example.json','install.bat','run.bat','.gitignore','.gitattributes'}
+FOLDERS={'planet','tests','docs','tools','.github','setup'}
 FORBIDDEN={'__pycache__','.git','.venv','saves','data','logs','work','backups','states'}
 
 def public_files(root=ROOT):
@@ -14,7 +14,7 @@ def public_files(root=ROOT):
         if any(p in FORBIDDEN for p in rel.parts):continue
         if len(rel.parts)==1 and rel.name not in ROOT_FILES:continue
         if len(rel.parts)>1 and rel.parts[0] not in FOLDERS:continue
-        if path.suffix not in ('.py','.md','.html','.png','.json','.txt','.yml','.yaml','.bat','') and path.name not in ('.gitignore','.gitattributes'):continue
+        if path.suffix not in ('.py','.md','.html','.png','.ico','.json','.txt','.yml','.yaml','.bat','.iss','') and path.name not in ('.gitignore','.gitattributes'):continue
         if path.name=='config.json' or path.suffix in ('.jsonl','.sqlite3','.db','.log','.pyc'):continue
         files.append(path)
     return files
@@ -23,8 +23,8 @@ def check(root=ROOT):
     files=public_files(root);errors=[];markdown=[]
     for path in files:
         rel=path.relative_to(root).as_posix()
-        if path.suffix=='.png':
-            if rel not in {'docs/assets/'+name+'.png' for name in ('interface','world','archipelago','closeup','construction','technology','relations','industry','factories','trade','history')}:errors.append('Unexpected image: '+rel)
+        if path.suffix in ('.png','.ico'):
+            if rel not in {'docs/assets/'+name+'.png' for name in ('interface','world','archipelago','closeup','construction','technology','relations','industry','factories','trade','history','living-planet-logo')} and rel!='docs/assets/living-planet.ico':errors.append('Unexpected image: '+rel)
             continue
         content=path.read_text(encoding='utf-8-sig')
         if re.search(r'(?:gh[pousr]_[A-Za-z0-9]{25,}|github_pat_[A-Za-z0-9_]{25,}|sk-[A-Za-z0-9_-]{25,})',content):errors.append('Possible credential: '+rel)

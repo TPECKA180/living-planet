@@ -10,9 +10,13 @@ Original Living Planet («Живая планета») was created by TPECKA180;
 
 ![Проверки](https://github.com/TPECKA180/living-planet/actions/workflows/tests.yml/badge.svg)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![Версия 8.0.0](https://img.shields.io/badge/версия-8.0.0-5CCFB2)
+![Версия 8.0.1](https://img.shields.io/badge/версия-8.0.1-5CCFB2)
 
-[Начать играть](docs/SETUP.md) · [Галерея: 10 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Проверки](docs/VALIDATION.md)
+[Скачать Windows EXE](https://github.com/TPECKA180/living-planet/releases/latest) · [Как установить](docs/SETUP.md) · [Галерея: 10 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Проверки](docs/VALIDATION.md)
+
+> **Обновление 8.0.1 для Windows:** удобный установщик, отдельный переносимый архив и ярлык «Living Planet» с новой пиксельной эмблемой в стиле тёмного фэнтези. Python устанавливать не нужно. Игровые системы и формат миров унаследованы от 8.0.0.
+
+<p align="center"><img src="docs/assets/living-planet-logo.png" alt="Пиксельная эмблема Living Planet с сияющей планетой и названием игры" width="520"></p>
 
 ![Общий интерфейс Живой планеты: карта, государства, запасы, объяснение решения и хроника](docs/assets/interface.png)
 
@@ -50,7 +54,7 @@ python main.py
 
 В Linux используются команды терминала; отдельная Windows-консоль там не открывается. Подробные инструкции, подключение по сети и режим стороннего совместимого сервера описаны в [руководстве по установке](docs/SETUP.md).
 
-**В поставке нет модели, её весов, готового личного мира или API-ключа.** `config.json` создаётся при первом запуске. Режим встроенного запуска из папки `models` в опубликованной 8.0.0 ещё не реализован: сейчас требуется сервер модели, стандартный вариант — LM Studio.
+**В поставке нет модели, её весов, готового личного мира или API-ключа.** `config.json` создаётся при первом запуске. Режим встроенного запуска из папки `models` в опубликованной 8.0.1 ещё не реализован: сейчас требуется сервер модели, стандартный вариант — LM Studio.
 
 ## Карта: от целого мира до отдельной клетки
 

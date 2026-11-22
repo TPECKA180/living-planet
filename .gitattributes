@@ -4,3 +4,8 @@
 *.yml text eol=lf
 *.bat text eol=crlf
 *.png binary
+# Preserve the committed line endings of generated or legacy files below.
+docs/ACTIONS.md -text
+docs/CATALOGS.md -text
+tools/build_reference.py -text
+tools/check_release.py -text

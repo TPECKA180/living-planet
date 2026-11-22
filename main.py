@@ -15,7 +15,7 @@ from planet.engine import Store, World
 from planet.saves import WorldLibrary
 
 from planet.modern_catalog import BUILDINGS as MODERN_BUILDINGS,UNITS as MODERN_UNITS,RESOURCE_NAMES
-ROOT=Path(__file__).resolve().parent
+ROOT=Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else Path(__file__).resolve().parent
 BG=(13,20,27); PANEL=(22,31,40); TEXT=(223,233,237); MUTED=(137,158,169); ACCENT=(92,207,178)
 TERRAIN={'grass':(61,92,64),'forest':(30,64,49),'mountain':(111,119,120),'water':(26,55,80),'science':(98,76,140),'resource':(137,108,58)}
 LABELS={'grass':'Трава','forest':'Лес','mountain':'Горы','water':'Вода','science':'Наука','resource':'Ресурс'}
@@ -164,7 +164,7 @@ def settings(config):
 class App:
     def __init__(self,world,store,config):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.0.0 · лаборатория миров')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.0.1 · лаборатория миров')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
         self.font=pg.font.SysFont('segoeui',17); self.small=pg.font.SysFont('segoeui',14)
         self.title=pg.font.SysFont('segoeui',30,bold=True); self.medium=pg.font.SysFont('segoeui',21,bold=True)
@@ -296,7 +296,9 @@ class App:
         previous=self.industry_windows.get(sid)
         if previous is not None and previous.poll() is None:
             self.status='Расширенная экономика этой страны уже открыта'; return
-        self.industry_windows[sid]=subprocess.Popen([sys.executable,'-m','planet.industry_window',str(self.runner.store.path.resolve()),sid,str(os.getpid())],cwd=ROOT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+        command=([sys.executable,'--living-planet-window','industry',str(self.runner.store.path.resolve()),sid,str(os.getpid())]
+                 if getattr(sys,'frozen',False) else [sys.executable,'-m','planet.industry_window',str(self.runner.store.path.resolve()),sid,str(os.getpid())])
+        self.industry_windows[sid]=subprocess.Popen(command,cwd=ROOT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         self.status='Открыта расширенная экономика: '+self.world.state(sid).name
 
     def open_relations(self):
@@ -304,14 +306,16 @@ class App:
         previous=self.relation_windows.get(sid)
         if previous is not None and previous.poll() is None:
             self.status='Окно отношений этого государства уже открыто'; return
-        self.relation_windows[sid]=subprocess.Popen([sys.executable,'-m','planet.relations_window',str(self.runner.store.path.resolve()),sid,str(os.getpid())],
+        command=([sys.executable,'--living-planet-window','relations',str(self.runner.store.path.resolve()),sid,str(os.getpid())]
+                 if getattr(sys,'frozen',False) else [sys.executable,'-m','planet.relations_window',str(self.runner.store.path.resolve()),sid,str(os.getpid())])
+        self.relation_windows[sid]=subprocess.Popen(command,
             cwd=ROOT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         self.status='Открыто отдельное окно отношений: '+self.world.states[self.selected].name
 
     def draw(self):
         pg=self.pg; width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('8.0.0  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
+        self.text('8.0.1  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЛОКАЛЬНЫЙ ИНТЕЛЛЕКТ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -606,7 +610,7 @@ class App:
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v8.0.0 · лаборатория миров')
+            self.pg.display.set_caption('Живая планета · v8.0.1 · лаборатория миров')
             if changed:
                 enabled=self.config.get('external_console',True)
                 if not enabled: self.runner.console.close()
@@ -769,6 +773,18 @@ def main():
 
 
 if __name__=='__main__':
+    if getattr(sys,'frozen',False) and len(sys.argv)>1 and sys.argv[1]=='--living-planet-window':
+        mode=sys.argv[2]; sys.argv=[sys.argv[0],*sys.argv[3:]]
+        if mode=='industry':
+            from planet.industry_window import main as embedded_main
+        elif mode=='relations':
+            from planet.relations_window import main as embedded_main
+        elif mode=='console':
+            from planet.console_monitor import main as embedded_main
+        else:
+            raise SystemExit(f'Unknown Living Planet window: {mode}')
+        embedded_main()
+        raise SystemExit(0)
     from planet.diagnostics import install
     install(ROOT/'logs')
     main()
