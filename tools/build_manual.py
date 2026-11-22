@@ -2,7 +2,7 @@
 from pathlib import Path
 import html,re
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='8.5.0'
+VERSION='8.5.1'
 DOCUMENTS=['README.md','docs/SCREENSHOTS.md','docs/SETUP.md','docs/GAME_GUIDE.md','docs/ACTIONS.md','docs/CATALOGS.md','docs/CONFIGURATION.md','docs/LIMITS.md','docs/AI.md','docs/HISTORY.md','docs/SAVES.md','docs/TROUBLESHOOTING.md','docs/ARCHITECTURE.md','docs/DEVELOPMENT.md','docs/VALIDATION.md','CHANGELOG.md','CONTRIBUTING.md']
 
 def inline(text):

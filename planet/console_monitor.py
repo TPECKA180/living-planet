@@ -38,8 +38,8 @@ def main():
     if os.name=='nt': ctypes.windll.kernel32.SetConsoleTitleW('Живая планета | поток локальной модели')
     path=Path(sys.argv[1]); pid=int(sys.argv[2]); offset=int(sys.argv[3])
     print('ЖИВАЯ ПЛАНЕТА · ЛОКАЛЬНАЯ МОДЕЛЬ · ПОТОК ГЕНЕРАЦИИ\n')
-    print('Здесь выводятся полученные от сервера reasoning и ответ.\n'
-          'Если модель не передаёт reasoning, будет показан только её ответ.\n'
+    print('Здесь выводятся reasoning, если его передаёт модель, и обычный ответ.\n'
+          'Скрытая внутренняя цепочка модели не извлекается.\n'
           'Полоса показывает готовность государств общего дня, а не выдуманный процент генерации.\n',flush=True)
     stream=None; waiting=False; started=time.monotonic(); channel=None; last_tick=0
     try:

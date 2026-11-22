@@ -130,7 +130,7 @@ def edit_settings(app_root,config,screenshot=None):
                    ('gpu_layers','Слоёв на видеокарте',99)]
     for i,(key,label,default) in enumerate(number_fields):
         dialog.field(key,label,config.get(key,default),(34+(i%2)*300,226+(i//2)*70,260,38))
-    console=config.get('external_console',False)
+    console=config.get('external_console',True)
     dialog.notice='Модель запускается локально внутри игры; подключение к сети не требуется.' if models else 'Поместите файл модели .gguf в папку models рядом с игрой.'
     clock=pg.time.Clock()
     while True:
@@ -164,7 +164,8 @@ def edit_settings(app_root,config,screenshot=None):
         for i,model in enumerate(models[:10]):
             dialog.button(model,(670,148+i*39,400,34),f'model:{i}',model==dialog.fields['model']['value'])
         if not models: dialog.label('Добавьте файл .gguf в папку models.',670,158,MUTED,dialog.small)
-        dialog.button(('ВКЛ' if console else 'ВЫКЛ')+' · окно журнала',(34,596,260,38),'console',console)
+        dialog.button(('ВКЛ' if console else 'ВЫКЛ')+' · поток модели',(34,596,260,38),'console',console)
+        dialog.label('Отдельная консоль показывает ход генерации и доступный поток reasoning.',34,621,MUTED,dialog.small)
         dialog.label('0 слоёв на видеокарте = режим CPU. Для RTX 3060 оставьте 99.',34,640,MUTED,dialog.small)
         dialog.label('Изменение модели перезапускает локальный движок.',34,665,MUTED,dialog.small)
         dialog.notice_lines(710)

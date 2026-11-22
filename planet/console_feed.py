@@ -1,4 +1,4 @@
-"""Append-only generation events and a separate, explicitly requested console."""
+"""Append-only generation events and an optional separate Windows console."""
 import json
 import os
 from pathlib import Path

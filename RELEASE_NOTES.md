@@ -1,50 +1,50 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/living-planet-logo.png" alt="Living Planet — пиксельная эмблема в стиле тёмного фэнтези" width="640">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/living-planet-logo.png" alt="Living Planet — пиксельная эмблема в стиле тёмного фэнтези" width="620">
 </p>
 
-# Living Planet 8.5.0 · автономная Windows-сборка
+# Living Planet 8.5.1 · возвращение потока модели
 
-**Живая планета теперь запускает локальную GGUF-модель сама. LM Studio, API-ключ и отдельный модельный сервер не нужны.**
+**Консоль наблюдения снова включена по умолчанию. Следите за генерацией и ответом государства в отдельном окне, пока игра продолжает работать.**
+
+> Reasoning отображается, только если его действительно передаёт выбранная модель. Living Planet не пытается извлечь скрытую внутреннюю цепочку рассуждений.
 
 ## Скачать
 
-- **Установщик:** `SETUPGAME.exe` — удобный мастер установки, выбор ярлыка с фирменной иконкой.
-- **Переносимая версия:** `LivingPlanet-8.5.0-Portable.zip` — распакуйте и запустите `LivingPlanet/LivingPlanet.exe`.
+- **[SETUPGAME.exe — установить игру](https://github.com/TPECKA180/living-planet/releases/download/v8.5.1/SETUPGAME.exe)** · мастер установки, выбор папки и ярлык Living Planet.
+- **[LivingPlanet-8.5.1-Portable.zip — переносимая версия](https://github.com/TPECKA180/living-planet/releases/download/v8.5.1/LivingPlanet-8.5.1-Portable.zip)** · распакуйте архив и запустите `LivingPlanet/LivingPlanet.exe`.
 
-Оба пакета включают приложение, пиксельную иконку Living Planet и официальный Windows Vulkan runtime llama.cpp. Веса модели в публичный релиз не включены: добавьте совместимый файл `.gguf` в `models` рядом с игрой и выберите его через **Модели · F2**. Уведомления о сторонних компонентах находятся в [THIRD_PARTY_NOTICES.md](https://github.com/TPECKA180/living-planet/blob/v8.5.0/docs/THIRD_PARTY_NOTICES.md).
+Публичные пакеты содержат игру, пиксельную иконку и встроенный Windows runtime llama.cpp. Веса GGUF в загрузку не входят: поместите свою модель в `models` рядом с игрой и выберите её в **Модели · F2**. LM Studio, Python, API-ключ и сетевой сервер не нужны. Сведения о сторонних компонентах — в [уведомлениях](https://github.com/TPECKA180/living-planet/blob/v8.5.1/docs/THIRD_PARTY_NOTICES.md).
 
-## Что нового
+## Что исправлено в 8.5.1
 
-- Встроен локальный запуск моделей из папки `models`; игра сама поднимает и завершает inference runtime.
-- Удалены шаги подключения к LM Studio, ввод адреса сервера и API-ключа. Настройки модели адаптированы под локальное окно контекста и слои GPU.
-- В интерфейс добавлена компактная скорость генерации в токенах в секунду.
-- Исправлены значки окна приложения и ярлыков: обе сборки используют пиксельную эмблему проекта.
-- Восстановлен полный логотип в значке без обрезанных букв и краёв; подпись ярлыка — **Living Planet**.
-- В установщике можно выбрать папку установки вручную.
-- Офлайн-справка включена в установленную игру; отсутствие файла справки больше не прерывает интерфейс.
-- Восстановлен размер окна контекста из 8.0.0 — 262144 токена.
-- Офлайн-справка теперь входит в приложение, и F1 не блокирует интерфейс при отсутствующем файле.
-- Существующие миры и сохранения остаются в прежнем формате; игровой движок и баланс не менялись.
+- Консоль потока модели снова включена по умолчанию и открывается во время наблюдения.
+- В консоль поступают состояние генерации, reasoning при его наличии и обычный ответ модели.
+- Настройки 8.5.0 автоматически включают консоль при первом запуске 8.5.1. Размер контекста, выбранная модель и личные параметры сохраняются.
+- Консоль можно выключить или включить обратно в окне **Модели · F2**.
+- В окне генерации прямо поясняется, что скрытая цепочка рассуждений не извлекается.
 
-## Первый запуск
+## Быстрый старт
 
-1. Установите игру через `SETUPGAME.exe` или распакуйте переносимый архив.
-2. Скопируйте совместимую модель формата GGUF в папку `models` рядом с `LivingPlanet.exe`.
-3. Нажмите **Модели · F2**, выберите файл и сохраните настройки.
-4. Создайте мир и запустите один день либо наблюдение.
+1. Установите игру через `SETUPGAME.exe` либо распакуйте переносимый архив.
+2. Положите совместимый файл `.gguf` в папку `models` рядом с `LivingPlanet.exe`.
+3. Откройте **Модели · F2**, выберите модель и сохраните настройки.
+4. Создайте мир и нажмите **Наблюдать** или **Один день**. Консоль покажет поток модели отдельно от игрового окна.
 
-Большая модель может загружаться несколько минут. Если не хватает памяти, уменьшите размер контекста или число слоёв GPU в настройках. Подробности ошибок доступны в `logs/local-model.log`.
+В старых конфигурациях параметр консоли обновляется один раз. Если модель не отправляет reasoning, консоль всё равно показывает прогресс и её обычный ответ.
 
-## Галерея
+## Галерея Living Planet
 
-![Главный экран Living Planet 8.5.0: карта, государства и скорость локальной генерации](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/interface.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/interface.png" alt="Основной экран: карта, государства, ресурсы и летопись" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/models.png" alt="Настройки встроенной локальной модели" width="48%">
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/archipelago.png" alt="Пиксельная карта архипелага" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/industry.png" alt="Экономика и производственные цепочки государства" width="48%">
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/relations.png" alt="Дипломатическое досье государства" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/history.png" alt="Летопись демонстрационного мира" width="48%">
+</p>
 
-![Окно выбора локальной GGUF-модели и настройки контекста](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/models.png)
-
-![Пиксельная карта Living Planet с островами и отрядами](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/archipelago.png)
-
-![Экономика государства и производственные цепочки](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/industry.png)
-
-![Технологии и развитие индустриальной эпохи](https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.0/docs/assets/technology.png)
-
-Скриншоты показывают демонстрационные миры и локальные настройки без личных сохранений.
+Все снимки показывают подготовленные демонстрационные миры. Личные сохранения и модельные запросы в публичную галерею не входят. Полная [галерея из 11 экранов](https://github.com/TPECKA180/living-planet/blob/v8.5.1/docs/SCREENSHOTS.md) и [руководство по установке](https://github.com/TPECKA180/living-planet/blob/v8.5.1/docs/SETUP.md) доступны в репозитории.

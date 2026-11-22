@@ -10,11 +10,13 @@ Original Living Planet («Живая планета») was created by TPECKA180;
 
 ![Проверки](https://github.com/TPECKA180/living-planet/actions/workflows/tests.yml/badge.svg)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![Версия 8.5.0](https://img.shields.io/badge/версия-8.5.0-5CCFB2)
+![Версия 8.5.1](https://img.shields.io/badge/версия-8.5.1-5CCFB2)
 
-[Скачать SETUPGAME.exe — установщик Windows](https://github.com/TPECKA180/living-planet/raw/refs/heads/main/SETUPGAME.exe) · [Как установить](docs/SETUP.md) · [Галерея: 11 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Сторонние компоненты](docs/THIRD_PARTY_NOTICES.md)
+[Скачать 8.5.1](https://github.com/TPECKA180/living-planet/releases/tag/v8.5.1) · [SETUPGAME.exe](https://github.com/TPECKA180/living-planet/releases/download/v8.5.1/SETUPGAME.exe) · [Как установить](docs/SETUP.md) · [Галерея: 11 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Сторонние компоненты](docs/THIRD_PARTY_NOTICES.md)
 
-> **Living Planet 8.5.0:** автономный Windows-релиз с собственной иконкой и встроенным движком llama.cpp. Игра находит модели GGUF в папке `models`, запускает выбранную модель сама и показывает скорость генерации в токенах в секунду. LM Studio для игры не требуется.
+> **Living Planet 8.5.1:** срочное обновление возвращает отдельную консоль потока модели. Во время наблюдения видны ход генерации, ответ и reasoning, если выбранная модель действительно передаёт его серверу. Для старых настроек консоль включается автоматически; её можно отключить в **Модели · F2**.
+
+> Встроенный движок llama.cpp запускает выбранную GGUF-модель из `models`; LM Studio для игры не требуется. Фирменная иконка, установщик с выбором папки и переносимая сборка входят в релиз.
 
 > Установщик **`SETUPGAME.exe`** также лежит в корне репозитория: нажмите файл или используйте ссылку выше. Файл `.iss` в исходном коде — сценарий сборки для разработчиков, не установщик.
 
