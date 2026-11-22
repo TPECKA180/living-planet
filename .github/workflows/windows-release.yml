@@ -31,7 +31,8 @@ jobs:
           $env:SDL_VIDEODRIVER = 'dummy'
           $env:SDL_AUDIODRIVER = 'dummy'
           $frame = Join-Path $env:RUNNER_TEMP 'living-planet-v801-smoke.png'
-          .\dist\LivingPlanet\LivingPlanet.exe --screenshot $frame
+          $app = Start-Process -FilePath '.\dist\LivingPlanet\LivingPlanet.exe' -ArgumentList ('--screenshot "' + $frame + '"') -WorkingDirectory "$PWD\dist\LivingPlanet" -WindowStyle Hidden -Wait -PassThru
+          if ($app.ExitCode -ne 0) { throw "The packaged game exited with code $($app.ExitCode)." }
           if (-not (Test-Path $frame)) { throw 'The packaged game did not render its startup screen.' }
       - name: Build clickable installer
         run: '& "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" setup/living-planet.iss'
