@@ -40,12 +40,42 @@ jobs:
           $compiler = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $compiler) { throw 'Inno Setup compiler was not found.' }
           & $compiler.FullName setup/living-planet.iss
+      - name: Smoke-check installer and desktop shortcut
+        shell: powershell
+        run: |
+          $installRoot = Join-Path $env:RUNNER_TEMP 'Living Planet 8.0.1 install check'
+          $installer = (Resolve-Path '.\dist\installer\SETUPGAME.exe').Path
+          $arguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=desktopicon /DIR="' + $installRoot + '"'
+          $installed = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+          if ($installed.ExitCode -ne 0) { throw "SETUPGAME.exe exited with code $($installed.ExitCode)." }
+          $game = Join-Path $installRoot 'LivingPlanet.exe'
+          if (-not (Test-Path $game)) { throw 'The installer did not install LivingPlanet.exe.' }
+          $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Living Planet.lnk'
+          if (-not (Test-Path $desktopShortcut)) { throw 'The installer did not create the requested desktop shortcut.' }
+          $shell = New-Object -ComObject WScript.Shell
+          $link = $shell.CreateShortcut($desktopShortcut)
+          if ($link.TargetPath -ne $game) { throw 'The desktop shortcut does not point to the installed game.' }
+      - name: Remove previous v8.0.1 assets before refresh
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $release = gh release view v8.0.1 --repo $env:GITHUB_REPOSITORY --json assets 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $names = @('SETUPGAME.exe', 'LivingPlanet-Setup-8.0.1.exe', 'LivingPlanet-8.0.1-Portable.zip')
+            foreach ($asset in ($release | ConvertFrom-Json).assets) {
+              if ($asset.name -in $names) {
+                gh release delete-asset v8.0.1 $asset.name --repo $env:GITHUB_REPOSITORY --yes
+                if ($LASTEXITCODE -ne 0) { throw "Could not replace old release asset $($asset.name)." }
+              }
+            }
+          }
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           name: Living Planet 8.0.1 · Windows
           body_path: RELEASE_NOTES.md
           files: |
-            dist/installer/LivingPlanet-Setup-8.0.1.exe
+            dist/installer/SETUPGAME.exe
             dist/LivingPlanet-8.0.1-Portable.zip
           generate_release_notes: false
