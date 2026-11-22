@@ -229,18 +229,11 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             system=COMPACT_RULES if estimate(COMPACT_RULES)<=max(256,window-output-2048) else TINY_RULES
         from .context import ContextCapacityError
         ratio=getattr(self,'current_token_ratio',2)
-        try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=int(self.config.get('input_tokens',56000)))
-        except ContextCapacityError:
-            # The configured factual budget is not permission to erase facts.
-            # A byte estimate is not a tokenizer. If the configured factual
-            # budget fits this window, let LM Studio validate a protected core
-            # that only the estimate considers too large; never delete facts
-            # or halve the response ceiling to satisfy this heuristic.
-            server_check=(output==0 and window>=estimate(system)+int(self.config.get('input_tokens',56000))+2048)
-            result=fit(system,context,window,output,bytes_per_token=ratio,allow_estimated_overflow=server_check)
-            result['context_info']['requested_user_input_tokens']=int(self.config.get('input_tokens',56000))
-            result['context_info']['expanded_for_actionable_data']=True
-            return result
+        # Never bypass the configured factual-input budget. The old fallback
+        # could send the full 262k-token window for a legacy save, leaving the
+        # game and its console waiting through minutes of prompt prefill.
+        # Failing before the HTTP request keeps the day and save untouched.
+        return fit(system,context,window,output,bytes_per_token=ratio,input_budget=int(self.config.get('input_tokens',56000)))
 
     def complete(self,system,context,model):
         from .response_io import ResponseTooLarge

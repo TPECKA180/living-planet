@@ -49,7 +49,10 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
     context=copy.deepcopy(source);cuts={};packing={}
     budget=max(128,window-output-min(1024,max(128,window//8)))
     system_bytes=len(system.encode('utf-8'));sizes={}
-    if input_budget is not None:budget=min(budget,math.ceil(system_bytes/bytes_per_token)+int(input_budget))
+    # Keep a small allowance for JSON framing and differences between this
+    # byte-based estimate and the server tokenizer; never treat it as room to
+    # expand to the whole model window.
+    if input_budget is not None:budget=min(budget,math.ceil(system_bytes/bytes_per_token)+int(input_budget)+256)
     def refresh(key=None):
         keys=list(context) if key is None else [key]
         if key is None:sizes.clear()
@@ -83,6 +86,102 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
             if len(context[key])>=old:context[key]=floor.copy()
             cuts[key]=cuts.get(key,0)+old-len(context[key]);refresh(key)
     if used()>budget:
+        # Compact verbose history and broad catalogs only in the outgoing
+        # request. Saved world data and the full in-game record stay untouched.
+        learning=context.get('learning')
+        if isinstance(learning,dict):
+            for key,keep in (('recent_rewards',8),('recent_episodes',2),('best_examples',1),('worst_examples',1),('experiment_results',1)):
+                rows=learning.get(key)
+                if isinstance(rows,list) and len(rows)>keep:
+                    learning[key]=rows[-keep:];cuts['learning.'+key]=len(rows)-keep;refresh('learning')
+            if isinstance(learning.get('recent_episodes'),list):
+                learning['recent_episodes']=[{k:row[k] for k in ('day','score_delta','territory_delta','accepted','rejected_count','reward_totals','actions','errors') if k in row} for row in learning['recent_episodes'] if isinstance(row,dict)]
+                for row in learning['recent_episodes']:
+                    row['actions']=row.get('actions',[])[:4];row['errors']=row.get('errors',[])[:2]
+                refresh('learning')
+            if isinstance(learning.get('experiment_results'),list):
+                for row in learning['experiment_results']:
+                    if isinstance(row,dict):
+                        for key,value in list(row.items()):
+                            if isinstance(value,str) and len(value)>500:row[key]=excerpt(value,500)
+                refresh('learning')
+        commerce=context.get('commerce')
+        if isinstance(commerce,dict) and isinstance(commerce.get('receipts'),list) and len(commerce['receipts'])>5:
+            rows=commerce['receipts'];commerce['receipts']=rows[-5:];cuts['commerce.receipts']=len(rows)-5;refresh('commerce')
+        construction=context.get('construction')
+        if isinstance(construction,dict) and isinstance(construction.get('projects'),list) and len(construction['projects'])>12:
+            rows=construction['projects'];critical=construction.get('critical_projects',[])
+            keep_ids={p.get('project_id') for p in critical if isinstance(p,dict)}
+            chosen=[p for p in rows if isinstance(p,dict) and p.get('project_id') in keep_ids]
+            chosen_ids={p.get('project_id') for p in chosen}
+            chosen.extend(p for p in rows if isinstance(p,dict) and p.get('project_id') not in chosen_ids and len(chosen)<12)
+            construction['projects']=chosen;cuts['construction.projects']=len(rows)-len(chosen);refresh('construction')
+        brief=context.get('strategic_brief')
+        if isinstance(brief,dict) and isinstance(brief.get('war_options'),list) and len(brief['war_options'])>4:
+            rows=brief['war_options'];brief['war_options']=rows[:4];cuts['strategic_brief.war_options']=len(rows)-4;refresh('strategic_brief')
+        # Remove repeated navigation detail; the authoritative unit and action
+        # site records remain elsewhere in the same prompt.
+        if used()>budget and isinstance(context.get('mobility'),list):
+            rows=context['mobility'];compact=[]
+            for unit in rows:
+                if not isinstance(unit,dict):continue
+                compact.append({k:unit[k] for k in ('unit_id','cell','type','moves_left','effective_strength','order','neutral_target','safe_targets','current_target_terrain','last_rejected_order','can_cross_water','embarked_on','passengers','blocked_reason') if k in unit})
+            if compact!=rows:context['mobility']=compact;cuts['mobility']='removed repeated adjacent/path details';refresh('mobility')
+        # Catalogs describe every late-game option. Keep technologies already
+        # researched or currently available, plus types already built.
+        if used()>budget and isinstance(context.get('technology_catalog'),list):
+            rows=context['technology_catalog']
+            researched={t.get('id') for t in rows if isinstance(t,dict) and t.get('researched')}
+            available={t.get('id') for t in rows if isinstance(t,dict) and t.get('available')}
+            relevant=[t for t in rows if isinstance(t,dict) and t.get('available')]
+            if relevant and len(relevant)<len(rows):
+                context['researched_technology_ids']=sorted(researched);context['technology_catalog']=relevant
+                cuts['technology_catalog']='full entries retained for currently available research';refresh('technology_catalog');refresh('researched_technology_ids')
+            modern=context.get('modern')
+            if isinstance(modern,dict) and isinstance(modern.get('buildings_catalog'),dict):
+                built={b.get('type') for b in context.get('buildings',[]) if isinstance(b,dict)}
+                projects=context.get('construction',{}).get('projects',[])
+                built.update(p.get('building') for p in projects if isinstance(p,dict))
+                cat=modern['buildings_catalog'];keep={k:v for k,v in cat.items() if isinstance(v,dict) and (v.get('tech') in available or k in built)}
+                if len(keep)<len(cat):modern['buildings_catalog']=keep;cuts['modern.buildings_catalog']=len(cat)-len(keep);refresh('modern')
+                for key,item in list(modern['buildings_catalog'].items()):
+                    modern['buildings_catalog'][key]={k:item[k] for k in ('id','tech','cost','inputs','outputs','capacity','max_level') if k in item}
+                refresh('modern')
+        if used()>budget and isinstance(context.get('units'),list):
+            fields=('id','owner','cell','type','strength','order','blocked_reason','embarked_on','effective_strength','tower_bonus_percent','era_locked')
+            rows=context['units'];own=context.get('private_owner');ours=[u for u in rows if isinstance(u,dict) and u.get('owner')==own];others=[u for u in rows if isinstance(u,dict) and u.get('owner')!=own][:8]
+            compact=[{k:u[k] for k in fields if k in u} for u in ours+others]
+            if compact!=rows:context['units']=compact;cuts['units']='removed movement bookkeeping';refresh('units')
+        if used()>budget and isinstance(context.get('economy'),dict):
+            industry=context['economy'].get('industry')
+            if isinstance(industry,dict) and isinstance(industry.get('buildings'),list) and len(industry['buildings'])>8:
+                rows=industry['buildings'];industry['buildings']=rows[:8];cuts['economy.industry.buildings']=len(rows)-8;refresh('economy')
+        if used()>budget and isinstance(context.get('construction'),dict) and isinstance(context['construction'].get('projects'),list) and len(context['construction']['projects'])>8:
+            rows=context['construction']['projects'];critical=context['construction'].get('critical_projects',[]);ids={p.get('project_id') for p in critical if isinstance(p,dict)}
+            chosen=[p for p in rows if isinstance(p,dict) and p.get('project_id') in ids][:8]
+            chosen_ids={p.get('project_id') for p in chosen};chosen.extend(p for p in rows if isinstance(p,dict) and p.get('project_id') not in chosen_ids and len(chosen)<8)
+            context['construction']['projects']=chosen;cuts['construction.projects']=len(rows)-len(chosen);refresh('construction')
+        if used()>budget and isinstance(context.get('strategy'),dict) and isinstance(context['strategy'].get('border_targets'),list):
+            rows=context['strategy']['border_targets']
+            if len(rows)>12:context['strategy']['border_targets']=rows[:12];cuts['strategy.border_targets']=len(rows)-12;refresh('strategy')
+        if used()>budget and isinstance(context.get('previous_outcome'),dict):
+            context.pop('previous_outcome');cuts['previous_outcome']='omitted prior result duplicated in recent history';refresh('previous_outcome')
+        if used()>budget and isinstance(context.get('map'),dict) and context['map'].get('format')=='cell_groups':
+            data=context['map'];compact={}
+            for terrain,level,owner,building,building_level,population,indices in data.get('groups',[]):
+                key=(terrain,owner,building,building_level)
+                compact.setdefault(key,[]).extend(indices)
+            groups=[[terrain,owner,building,building_level,indices] for (terrain,owner,building,building_level),indices in compact.items()]
+            if len(groups)<len(data.get('groups',[])):
+                context['map']={'format':'cell_groups_compact','size':data['size'],'columns':['terrain','owner','building','building_level','indices'],
+                    'decode':'Для каждого index: x=index%size, y=index//size. Уровень и население переданы отдельными сводками; координаты зданий есть в buildings/action_sites.' ,'groups':groups}
+                cuts['map']='grouped by terrain, owner and building for prompt size';packing['map']='compact cell_groups; saved map unchanged';refresh('map')
+        if used()>budget and isinstance(context.get('map'),dict) and context['map'].get('format')=='cell_groups_compact':
+            data=context['map'];groups=data.get('groups',[])
+            kept=[g for g in groups if len(g)>=5 and (g[1] is not None or g[2] is not None)]
+            if len(kept)<len(groups):
+                data['groups']=kept;data['decode']+=' Пустые нейтральные клетки опущены; свободные цели смотри в action_sites/settlement_sites.'
+                cuts['map_neutral_empty_groups']=len(groups)-len(kept);refresh('map')
         # These are prior copies; current notes, plan, dossiers, results and menus remain.
         for key in ('previous_assessment','previous_construction_review','previous_economic_review'):
             if used()<=budget:break
@@ -106,7 +205,7 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
                 refresh(key)
         cuts['text_limit']=limit
     if used()>budget and not allow_estimated_overflow:
-        raise ContextCapacityError(f'Контекст не вмещает текущие проекты, войска, цены и правила: требуется примерно {used()} токенов входа с инструкциями, доступно {budget}. Данные действий НЕ удалены; нужен больший контекст или меньший резерв ответа.')
+        raise ContextCapacityError(f'Запрос остановлен до отправки модели: подготовленный вход требует примерно {used()} токенов, лимит этого запроса — {budget}. Сохранение и день не изменены. Уменьшите размер карты/истории или лимит входа и повторите наблюдение.')
     context['context_info']=dict(window=window,estimated_input_tokens=used(),reserved_output=output,trimmed=cuts,
         requested_user_input_tokens=input_budget,packing=packing,actionable_data_preserved=True,
         estimate_method=f'UTF-8 bytes / {bytes_per_token:g}; conservative calibration; adaptive retry on server overflow')
