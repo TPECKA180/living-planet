@@ -1,7 +1,7 @@
 ; This is the Inno Setup source script for developers, not the installer executable.
 ; End users launch SETUPGAME.exe for the current Windows release.
 #pragma code_page = 65001
-#define AppVersion "8.5.1"
+#define AppVersion "8.5.2"
 #define AppName "Living Planet"
 
 [Setup]

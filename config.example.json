@@ -31,7 +31,7 @@
   "reflective_learning": true,
   "local_execution": true,
   "local_chronicle": true,
-  "runtime_patch": "8.5.1",
+  "runtime_patch": "8.5.2",
   "gpu_layers": 99,
   "local_port": 32124,
   "response_max_bytes": 33554432,

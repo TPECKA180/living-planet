@@ -1,6 +1,6 @@
 # Все параметры конфигурации
 
-Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 8.5.1 со встроенным llama.cpp и локальными GGUF-моделями.
+Рабочий `config.json` создаётся на первом запуске и игнорируется Git. Значения ниже — чистые настройки 8.5.2 со встроенным llama.cpp и локальными GGUF-моделями.
 
 | Ключ | Тип | По умолчанию |
 | --- | --- | --- |
@@ -36,7 +36,7 @@
 | reflective_learning | bool | true |
 | local_execution | bool | true |
 | local_chronicle | bool | true |
-| runtime_patch | str | "8.5.1" |
+| runtime_patch | str | "8.5.2" |
 | gpu_layers | int | 99 |
 | local_port | int | 32124 |
 | response_max_bytes | int | 33554432 |

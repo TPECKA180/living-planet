@@ -40,9 +40,11 @@ def excerpt(text,limit):
 
 class ContextCapacityError(RuntimeError):
     """Never send an identity-only prompt after throwing away actionable facts."""
+    def __init__(self,message,estimated=None,budget=None):
+        super().__init__(message);self.estimated=estimated;self.budget=budget
 
 
-def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_estimated_overflow=False):
+def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_estimated_overflow=False,compact_small_window=False):
     from .prompt_packing import shared_schema,grouped_map
     if isinstance(source.get('own_context'),dict):
         source={**source['own_context'],**{k:v for k,v in source.items() if k!='own_context'}}
@@ -84,7 +86,7 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
             context[key]=[m for m in context[key] if m in floor or m in tail]
             if len(context[key])>=old:context[key]=floor.copy()
             cuts[key]=cuts.get(key,0)+old-len(context[key]);refresh(key)
-    if used()>budget and window>90000:
+    if used()>budget and (window>90000 or compact_small_window):
         # Compact verbose history and broad catalogs only in the outgoing
         # request. Saved world data and the full in-game record stay untouched.
         learning=context.get('learning')
@@ -108,7 +110,7 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
         if isinstance(commerce,dict) and isinstance(commerce.get('receipts'),list) and len(commerce['receipts'])>5:
             rows=commerce['receipts'];commerce['receipts']=rows[-5:];cuts['commerce.receipts']=len(rows)-5;refresh('commerce')
         construction=context.get('construction')
-        if window>90000 and isinstance(construction,dict) and isinstance(construction.get('projects'),list) and len(construction['projects'])>12:
+        if (window>90000 or compact_small_window) and isinstance(construction,dict) and isinstance(construction.get('projects'),list) and len(construction['projects'])>12:
             rows=construction['projects'];critical=construction.get('critical_projects',[])
             keep_ids={p.get('project_id') for p in critical if isinstance(p,dict)}
             chosen=[p for p in rows if isinstance(p,dict) and p.get('project_id') in keep_ids]
@@ -155,7 +157,7 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
             industry=context['economy'].get('industry')
             if isinstance(industry,dict) and isinstance(industry.get('buildings'),list) and len(industry['buildings'])>8:
                 rows=industry['buildings'];industry['buildings']=rows[:8];cuts['economy.industry.buildings']=len(rows)-8;refresh('economy')
-        if window>90000 and used()>budget and isinstance(context.get('construction'),dict) and isinstance(context['construction'].get('projects'),list) and len(context['construction']['projects'])>12:
+        if (window>90000 or compact_small_window) and used()>budget and isinstance(context.get('construction'),dict) and isinstance(context['construction'].get('projects'),list) and len(context['construction']['projects'])>12:
             rows=context['construction']['projects'];critical=context['construction'].get('critical_projects',[]);ids={p.get('project_id') for p in critical if isinstance(p,dict)}
             chosen=[p for p in rows if isinstance(p,dict) and p.get('project_id') in ids][:12]
             chosen_ids={p.get('project_id') for p in chosen};chosen.extend(p for p in rows if isinstance(p,dict) and p.get('project_id') not in chosen_ids and len(chosen)<12)
@@ -204,7 +206,7 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
                 refresh(key)
         cuts['text_limit']=limit
     if used()>budget and not allow_estimated_overflow:
-        raise ContextCapacityError(f'Запрос остановлен до отправки модели: подготовленный вход требует примерно {used()} токенов, лимит этого запроса — {budget}. Сохранение и день не изменены. Уменьшите размер карты/истории или лимит входа и повторите наблюдение.')
+        raise ContextCapacityError(f'Запрос остановлен до отправки модели: подготовленный вход требует примерно {used()} токенов, лимит этого запроса — {budget}. Сохранение и день не изменены. Уменьшите размер карты/истории или лимит входа и повторите наблюдение.',used(),budget)
     context['context_info']=dict(window=window,estimated_input_tokens=used(),reserved_output=output,trimmed=cuts,
         requested_user_input_tokens=input_budget,packing=packing,actionable_data_preserved=True,
         estimate_method=f'UTF-8 bytes / {bytes_per_token:g}; conservative calibration; adaptive retry on server overflow')

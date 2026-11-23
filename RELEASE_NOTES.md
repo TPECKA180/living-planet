@@ -1,28 +1,30 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/living-planet-logo.png" alt="Living Planet — пиксельная эмблема в стиле тёмного фэнтези" width="620">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.2/docs/assets/living-planet-logo.png" alt="Living Planet — пиксельная эмблема в стиле тёмного фэнтези" width="620">
 </p>
 
-# Living Planet 8.5.1 · возвращение потока модели
+# Living Planet 8.5.2 · адаптивное окно и проверка локальной модели
 
-**Консоль наблюдения снова включена по умолчанию. Следите за генерацией и ответом государства в отдельном окне, пока игра продолжает работать.**
+**Living Planet заново собирает запрос с меньшим окном после отказа локального сервера и повторяет ход ограниченное число раз. Сейв и решения других государств сохраняются.**
 
 > Reasoning отображается, только если его действительно передаёт выбранная модель. Living Planet не пытается извлечь скрытую внутреннюю цепочку рассуждений.
 
 ## Скачать
 
-- **[SETUPGAME.exe — установить игру](https://github.com/TPECKA180/living-planet/releases/download/v8.5.1/SETUPGAME.exe)** · мастер установки, выбор папки и ярлык Living Planet.
-- **[LivingPlanet-8.5.1-Portable.zip — переносимая версия](https://github.com/TPECKA180/living-planet/releases/download/v8.5.1/LivingPlanet-8.5.1-Portable.zip)** · распакуйте архив и запустите `LivingPlanet/LivingPlanet.exe`.
+- **[SETUPGAME.exe — установить игру](https://github.com/TPECKA180/living-planet/releases/download/v8.5.2/SETUPGAME.exe)** · мастер установки, выбор папки и ярлык Living Planet.
+- **[LivingPlanet-8.5.2-Portable.zip — переносимая версия](https://github.com/TPECKA180/living-planet/releases/download/v8.5.2/LivingPlanet-8.5.2-Portable.zip)** · распакуйте архив и запустите `LivingPlanet/LivingPlanet.exe`.
 
-Публичные пакеты содержат игру, пиксельную иконку и встроенный Windows runtime llama.cpp. Веса GGUF в загрузку не входят: поместите свою модель в `models` рядом с игрой и выберите её в **Модели · F2**. LM Studio, Python, API-ключ и сетевой сервер не нужны. Сведения о сторонних компонентах — в [уведомлениях](https://github.com/TPECKA180/living-planet/blob/v8.5.1/docs/THIRD_PARTY_NOTICES.md).
+Публичные пакеты содержат игру, пиксельную иконку и встроенный Windows runtime llama.cpp. Веса GGUF в загрузку не входят: поместите свою модель в `models` рядом с игрой и выберите её в **Модели · F2**. LM Studio, Python, API-ключ и сетевой сервер не нужны. Сведения о сторонних компонентах — в [уведомлениях](https://github.com/TPECKA180/living-planet/blob/v8.5.2/docs/THIRD_PARTY_NOTICES.md).
 
-## Что исправлено в 8.5.1
+## Что изменилось в 8.5.2
 
-- Устранена причина зависания на старых больших сохранениях: чрезмерный промпт больше не отправляется с превышением лимита входа.
-- Большая карта, архив обучения, квитанции и каталоги сжимаются только для текущего запроса. Файл мира, сейв и приказы не изменяются.
-- Если запрос не удаётся безопасно уместить, игра сразу показывает причину и не ждёт долгую предобработку модели.
+- Восстановлена автоматическая регенерация окна при ответе сервера о переполнении. Повтор строит запрос заново с меньшим пределом и прекращается после настроенного числа попыток.
+- Исправлен чрезмерно большой принудительный минимум ответа: теперь отправляется заданный пользователем `max_tokens`, ограниченный фактическим свободным окном после промпта. Генерация не должна продолжаться до искусственного потолка в 110 000 токенов.
+- Если крупный старый промпт не помещается в фактическое окно, карта, архив обучения, квитанции и каталоги уплотняются только в копии запроса. Сейв и действующие приказы не изменяются.
+- Незавершённый ответ отбрасывается; при исчерпании попыток день и готовые решения сохраняются для повтора.
+- Настройки 8.5.1 обновляются без сброса модели, окна контекста, лимитов, сейвов и локальной модели.
 - Консоль потока модели снова включена по умолчанию и открывается во время наблюдения.
 - В консоль поступают состояние генерации, reasoning при его наличии и обычный ответ модели.
-- Настройки 8.5.0 автоматически включают консоль при первом запуске 8.5.1. Размер контекста, выбранная модель и личные параметры сохраняются.
+- Настройки 8.5.0 и 8.5.1 обновляются при первом запуске 8.5.2. Размер контекста, выбранная модель и личные параметры сохраняются.
 - Консоль можно выключить или включить обратно в окне **Модели · F2**.
 - В окне генерации прямо поясняется, что скрытая цепочка рассуждений не извлекается.
 
@@ -38,16 +40,16 @@
 ## Галерея Living Planet
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/interface.png" alt="Основной экран: карта, государства, ресурсы и летопись" width="48%">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/models.png" alt="Настройки встроенной локальной модели" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.2/docs/assets/interface.png" alt="Основной экран: карта, государства, ресурсы и летопись" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.2/docs/assets/models.png" alt="Настройки встроенной локальной модели" width="48%">
 </p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/archipelago.png" alt="Пиксельная карта архипелага" width="48%">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/industry.png" alt="Экономика и производственные цепочки государства" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.2/docs/assets/archipelago.png" alt="Пиксельная карта архипелага" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.2/docs/assets/industry.png" alt="Экономика и производственные цепочки государства" width="48%">
 </p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/relations.png" alt="Дипломатическое досье государства" width="48%">
-  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.1/docs/assets/history.png" alt="Летопись демонстрационного мира" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.2/docs/assets/relations.png" alt="Дипломатическое досье государства" width="48%">
+  <img src="https://raw.githubusercontent.com/TPECKA180/living-planet/v8.5.2/docs/assets/history.png" alt="Летопись демонстрационного мира" width="48%">
 </p>
 
-Все снимки показывают подготовленные демонстрационные миры. Личные сохранения и модельные запросы в публичную галерею не входят. Полная [галерея из 11 экранов](https://github.com/TPECKA180/living-planet/blob/v8.5.1/docs/SCREENSHOTS.md) и [руководство по установке](https://github.com/TPECKA180/living-planet/blob/v8.5.1/docs/SETUP.md) доступны в репозитории.
+Все снимки показывают подготовленные демонстрационные миры. Личные сохранения и модельные запросы в публичную галерею не входят. Полная [галерея из 11 экранов](https://github.com/TPECKA180/living-planet/blob/v8.5.2/docs/SCREENSHOTS.md) и [руководство по установке](https://github.com/TPECKA180/living-planet/blob/v8.5.2/docs/SETUP.md) доступны в репозитории.

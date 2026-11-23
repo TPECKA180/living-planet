@@ -223,21 +223,26 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         available=max(256,window-estimate(system)-max(1024,int(self.config.get('input_tokens',56000)))-2048)
         return max(256,min(requested,available))
 
-    def fit_context(self,system,context,window,output=None):
+    def fit_context(self,system,context,window,output=None,input_budget=None,adaptive=False):
         output=output if output is not None else self.answer_budget(system,window)
         if system==RULES and estimate(system)>max(256,window-output-2048):
             system=COMPACT_RULES if estimate(COMPACT_RULES)<=max(256,window-output-2048) else TINY_RULES
         from .context import ContextCapacityError
         ratio=getattr(self,'current_token_ratio',2)
-        budget=int(self.config.get('input_tokens',56000))
-        try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=budget)
-        except ContextCapacityError:
+        budget=int(self.config.get('input_tokens',56000)) if input_budget is None else max(1024,int(input_budget))
+        try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=budget,compact_small_window=adaptive)
+        except ContextCapacityError as exc:
             # Preserve the historical small-window path for compact models,
             # where actionable facts may need a little more room. Never use
             # that escape hatch on large windows: legacy saves could otherwise
             # expand to 262k tokens and stall prompt prefill for many minutes.
-            if output==0 and 16384<=window<=90000:
-                result=fit(system,context,window,output,bytes_per_token=ratio,allow_estimated_overflow=True)
+            if not adaptive and output==0 and 16384<=window<=90000:
+                # Preserve the small-window compatibility path when the packed
+                # request remains below the real model window. Only aggressively
+                # compact when the request could exceed the server's hard limit.
+                if isinstance(exc.estimated,int) and exc.estimated>window:
+                    return fit(system,context,window,output,bytes_per_token=ratio,input_budget=budget,compact_small_window=True)
+                result=fit(system,context,window,output,bytes_per_token=ratio,input_budget=budget,allow_estimated_overflow=True)
                 result['context_info']['requested_user_input_tokens']=budget
                 result['context_info']['expanded_for_actionable_data']=True
                 return result
@@ -257,11 +262,13 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         window=min(window,self.context_limits.get(model,window))
         attempts=max(1,int(self.config.get('context_retry_attempts',8)))
         repair=None;envelope_error=None;repetitions=0;length_retries=0
+        retry_input_budget=max(1024,int(self.config.get('input_tokens',56000)))
+        retry_output_limit=None;adaptive_window=False
         for attempt in range(attempts):
-            # max_tokens is a server-side generation ceiling, not an allocation
-            # that must evict factual input before a request is sent. The bundled
-            # local server still needs a ceiling that fits its context window.
-            output=max(110000,int(self.config.get('max_tokens',196608)))
+            # Honor the user's configured answer ceiling. A fixed large floor
+            # made short decisions stream for many minutes and looked like a hang.
+            output=max(256,int(self.config.get('max_tokens',196608)))
+            if retry_output_limit is not None:output=min(output,retry_output_limit)
             actual_system=system
             desired_input=max(1024,int(self.config.get('input_tokens',56000)))
             # Retain the existing input budget and the actual server window.
@@ -279,9 +286,13 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 payload_context=dict(payload_context,format_correction=repair)
                 actual_system+='\nПредыдущий ответ не разобран как JSON. Исправь формат по format_correction. Верни один JSON-объект без Markdown, рассуждений вне объекта и постороннего текста.'
             from .context import ContextCapacityError
-            try:fitted=self.fit_context(actual_system,payload_context,window,0)
+            try:fitted=self.fit_context(actual_system,payload_context,window,0,input_budget=retry_input_budget,adaptive=adaptive_window)
             except ContextCapacityError as exc:
                 raise GenerationStalled('Входные данные не помещаются в окно контекста. Предел ответа не уменьшен; автоматическая регенерация остановлена без пропуска дня. '+str(exc)) from exc
+            # Do not advertise more output than can coexist with the packed
+            # prompt in the server's real context allocation.
+            output=min(output,max(256,window-fitted['context_info']['estimated_input_tokens']-1024))
+            if retry_output_limit is not None:output=min(output,retry_output_limit)
             fitted['context_info']['server_output_limit']=output
             self.emit('request_start',f'{self.active or "Менеджер / служебный запрос"} · окно {window}, вход до {desired_input} + правила, предел ответа {output} токенов (доступная длина зависит от оставшегося окна) · попытка {attempt+1}',window=window,requested_output=output,actual_output=output,estimated_remaining_tokens=max(0,window-fitted['context_info']['estimated_input_tokens']-2048),estimated_input=fitted['context_info']['estimated_input_tokens'])
             if fitted['context_info']['trimmed']:
@@ -317,11 +328,16 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     self.emit('status','Сервер не принял JSON-схему дополнения. Используем уточнение с обычной проверкой структуры.')
                     continue
                 if not context_error(exc): self.emit('error',str(exc)); raise
-                if fitted['context_info'].get('estimated_overflow_tokens'):
-                    raise GenerationStalled('Локальный движок подтвердил, что вход не помещается в окно. Предел ответа не уменьшен; повтор того же запроса остановлен. '+str(exc)) from exc
                 self.token_ratios.pop(model,None); self.current_token_ratio=2
-                window=max(2048,int(window*.55)); self.context_limits[model]=window
-                self.emit('status',f'Переполнение: сокращаем запрос до бюджета {window} токенов и повторяем тот же ход.')
+                reduced=max(8192,int(window*.70))
+                next_input=max(4096,int(retry_input_budget*.70))
+                if reduced>=window or (next_input>=retry_input_budget and reduced==window):
+                    raise AutomaticRetry('Локальный движок продолжает сообщать о переполнении на минимальном окне. Повторим ход через 5 секунд; решения и день сохранены.') from exc
+                window=reduced; retry_input_budget=next_input; self.context_limits[model]=window
+                adaptive_window=True
+                available=max(4096,window-fitted['context_info']['estimated_input_tokens']-2048)
+                retry_output_limit=min(output,available)
+                self.emit('status',f'Переполнение подтверждено сервером. Пересобираем промпт: окно {window}, входной лимит {retry_input_budget}, предел ответа {retry_output_limit}; попытка {attempt+2}/{attempts}. Незавершённый ответ отброшен.')
                 continue
             choices=response.get('choices') if isinstance(response,dict) else None
             if not isinstance(choices,list) or not choices or not isinstance(choices[0],dict) or not isinstance(choices[0].get('message'),dict):

@@ -1,10 +1,10 @@
-# Установка Living Planet 8.5.1
+# Установка Living Planet 8.5.2
 
-[На главную](../README.md) · [Справка по игре](GAME_GUIDE.md) · [Загрузить SETUPGAME.exe](https://github.com/TPECKA180/living-planet/releases/tag/v8.5.1)
+[На главную](../README.md) · [Справка по игре](GAME_GUIDE.md) · [Загрузить SETUPGAME.exe](https://github.com/TPECKA180/living-planet/releases/tag/v8.5.2)
 
 ## Установка на Windows
 
-1. Скачайте `SETUPGAME.exe` со страницы релиза 8.5.1.
+1. Скачайте `SETUPGAME.exe` со страницы релиза 8.5.2.
 2. Запустите установщик, выберите папку на странице **Папка установки** и при желании отметьте создание ярлыка **Living Planet** на рабочем столе.
 3. В папке игры создайте или откройте `models` и скопируйте туда файл модели формата `.gguf`.
 4. Запустите **Living Planet** и выберите модель в окне **Модели · F2**.
@@ -13,7 +13,7 @@
 
 ## Переносимый архив
 
-Скачайте `LivingPlanet-8.5.1-Portable.zip`, распакуйте в папку с правом записи и запустите `LivingPlanet/LivingPlanet.exe`. Рядом с приложением уже есть папка `models` — добавьте туда `.gguf`.
+Скачайте `LivingPlanet-8.5.2-Portable.zip`, распакуйте в папку с правом записи и запустите `LivingPlanet/LivingPlanet.exe`. Рядом с приложением уже есть папка `models` — добавьте туда `.gguf`.
 
 ## Выбор модели и скорость
 

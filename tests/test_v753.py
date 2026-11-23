@@ -7,6 +7,13 @@ from planet.runtime_config import upgrade_config
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_851_upgrade_preserves_model_window_and_token_limits(self):
+        cfg=dict(runtime_patch='8.5.1',model='gemma-local.gguf',context_window=262144,input_tokens=72000,
+                 max_tokens=56000,temperature=.7,saves_directory=r'F:\Living Planet\saves',external_console=True)
+        before=copy.deepcopy(cfg)
+        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['runtime_patch'],'8.5.2')
+        before['runtime_patch']='8.5.2';self.assertEqual(cfg,before)
+
     def test_unfinished_top_level_field_handles_nested_and_escaped_values(self):
         self.assertEqual(unfinished_field('{"thinking":"ok", "learning_review":{"hypothesis":"loop'), 'learning_review')
         self.assertEqual(unfinished_field('{"thinking":"a \\" quote", "actions":[{"type":"hold"}],"learning_notes":"loop'), 'learning_notes')
@@ -40,4 +47,4 @@ class RecoveryTests(unittest.TestCase):
     def test_recent_config_migration_changes_only_patch(self):
         for v in ('7.5.1','7.5.2','7.5.3'):
             cfg=dict(runtime_patch=v,input_tokens=56000,max_tokens=196608,context_window=262144,temperature=.7)
-            upgrade_config(cfg);self.assertEqual(cfg['runtime_patch'],'8.5.1');self.assertTrue(cfg['external_console']);self.assertEqual(cfg['input_tokens'],12000);self.assertEqual(cfg['context_window'],262144);self.assertEqual(cfg['max_tokens'],196608)
+            upgrade_config(cfg);self.assertEqual(cfg['runtime_patch'],'8.5.2');self.assertTrue(cfg['external_console']);self.assertEqual(cfg['input_tokens'],12000);self.assertEqual(cfg['context_window'],262144);self.assertEqual(cfg['max_tokens'],196608)
