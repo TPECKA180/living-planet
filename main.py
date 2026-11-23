@@ -165,7 +165,7 @@ def settings(config):
 class App:
     def __init__(self,world,store,config,local_runtime=None,startup_status=''):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.5.2 · мир без границ')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.5.3 · мир без границ')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
         icon_path=(ROOT/'assets/living-planet-logo.png') if getattr(sys,'frozen',False) else (ROOT/'docs/assets/living-planet-logo.png')
         try: pg.display.set_icon(pg.image.load(str(icon_path)))
@@ -329,7 +329,7 @@ class App:
             elif self.local_runtime.process and self.local_runtime.process.poll() is not None:
                 self.model_loading=False;self.status='Не удалось загрузить модель. Подробности в logs/local-model.log.'
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('8.5.2  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ВСТРОЕННЫЕ МОДЕЛИ',30,62,MUTED,self.small)
+        self.text('8.5.3  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ВСТРОЕННЫЕ МОДЕЛИ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -628,7 +628,7 @@ class App:
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v8.5.2 · мир без границ')
+            self.pg.display.set_caption('Живая планета · v8.5.3 · мир без границ')
             if changed:
                 settings_status='Настройки сохранены. Можно продолжить.'
                 if self.local_runtime:

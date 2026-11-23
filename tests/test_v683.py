@@ -61,7 +61,7 @@ class ResilienceTests(unittest.TestCase):
 
     def test_migration_preserves_explicit_limits_and_local_mode_preferences(self):
         config=dict(runtime_patch='6.8.2',max_tokens=32768,context_window=262144,local_execution=False,local_chronicle=False)
-        self.assertTrue(upgrade_config(config));self.assertEqual(config['runtime_patch'],'8.5.2');self.assertTrue(config['external_console'])
+        self.assertTrue(upgrade_config(config));self.assertEqual(config['runtime_patch'],'8.5.3');self.assertTrue(config['external_console'])
         self.assertEqual(config['max_tokens'],196608);self.assertEqual(config['context_window'],262144);self.assertEqual(config['input_tokens'],12000)
         self.assertFalse(config['local_execution']);self.assertFalse(config['local_chronicle']);self.assertFalse(upgrade_config(config))
 

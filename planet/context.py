@@ -38,6 +38,63 @@ def excerpt(text,limit):
     rest=limit-len(marker); return text[:rest//2]+marker+text[-(rest-rest//2):]
 
 
+def age_compress(source,day,retention=10):
+    """Keep recent records verbatim; replace older repeats with compact digests."""
+    if not isinstance(source,list) or type(day) is not int:return source
+    cutoff=day-retention
+    recent=[row for row in source if isinstance(row,dict) and (type(row.get('day')) is not int or row['day']>=cutoff)]
+    old=[row for row in source if isinstance(row,dict) and type(row.get('day')) is int and row['day']<cutoff]
+    if not old:return source
+    if any('sender' in row or 'recipient' in row for row in old):
+        # Preserve correspondence parties and the latest distinct points per pair.
+        groups={}
+        for row in old:
+            key=(row.get('sender'),row.get('recipient'))
+            groups.setdefault(key,[]).append(row)
+        digest=[]
+        for (sender,recipient),rows in groups.items():
+            samples=[];seen=set()
+            for row in rows[-8:]:
+                value=row.get('text')
+                if isinstance(value,str) and value.strip() and value.strip() not in seen:
+                    samples.append(excerpt(value.strip(),140));seen.add(value.strip())
+            text='Сжатая переписка за дни '+str(rows[0]['day'])+'–'+str(rows[-1]['day'])+f' ({len(rows)} писем): '+' | '.join(samples[-4:])
+            digest.append(dict(day=rows[-1]['day'],sender=sender,recipient=recipient,text=excerpt(text,700),records=len(rows),compressed=True))
+        return digest+recent
+    # Keep the latest thoughts whole and condense the older notes/plans into one
+    # dated entry, without touching the canonical current notes or plan fields.
+    if any(any(key in row for key in ('thinking','notes','plan')) for row in old):
+        def unique_text(key,limit):
+            values=[];seen=set()
+            for row in old:
+                value=row.get(key)
+                if isinstance(value,str) and value.strip() and value.strip() not in seen:
+                    values.append(excerpt(value.strip(),limit));seen.add(value.strip())
+            return ' · '.join(values[-4:])
+        summary=dict(day=old[-1]['day'],records=len(old),through_day=old[-1]['day'],compressed=True)
+        for key in ('thinking','notes','plan'):
+            value=unique_text(key,220)
+            if value:summary[key]=excerpt(value,900)
+        if any('owner' in row for row in old):summary['owner']=old[-1].get('owner')
+        assessments=[row.get('strategic_assessment') for row in old if isinstance(row.get('strategic_assessment'),dict)]
+        if assessments:
+            summary['strategic_assessment']=assessments[-1]
+        return [summary]+recent
+    # Events and state history are already factual records; keep one short
+    # latest entry for each kind and preserve all entries from the last 10 days.
+    groups={}
+    for row in old:groups.setdefault(row.get('kind',row.get('type','record')),[]).append(row)
+    digest=[]
+    for kind,rows in groups.items():
+        latest=rows[-1];item={key:latest[key] for key in ('day','kind','type','owner','visible_to','state') if key in latest}
+        for key in ('text','description','title'):
+            values=[row.get(key) for row in rows if isinstance(row.get(key),str) and row.get(key).strip()]
+            if values:item[key]=excerpt(values[-1],180)
+        item.update(compressed=True,records=len(rows),through_day=rows[-1].get('day'))
+        digest.append(item)
+    return digest+recent
+
+
 class ContextCapacityError(RuntimeError):
     """Never send an identity-only prompt after throwing away actionable facts."""
     def __init__(self,message,estimated=None,budget=None):
@@ -49,6 +106,14 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
     if isinstance(source.get('own_context'),dict):
         source={**source['own_context'],**{k:v for k,v in source.items() if k!='own_context'}}
     context=copy.deepcopy(source);cuts={};packing={}
+    day=context.get('day')
+    if type(day) is int:
+        for key in ('messages','memory','history','events'):
+            rows=context.get(key)
+            compacted=age_compress(rows,day,10)
+            if compacted is not rows:
+                context[key]=compacted
+                cuts[key+'.older_than_10_days']='summarized; saved records unchanged'
     budget=max(128,window-output-min(1024,max(128,window//8)))
     system_bytes=len(system.encode('utf-8'));sizes={}
     # Allow a fixed tokenizer-estimate cushion, not a window-sized overflow:
@@ -76,10 +141,12 @@ def fit(system,source,window,output,bytes_per_token=2,input_budget=None,allow_es
             if cuts.get('map'):context['map_truncated']=True;refresh('map_truncated')
     # Old duplicates and transcripts give way before CURRENT actionable facts.
     for key in ('memory','history','events','messages'):
-        floor=[]
+        # Never discard the age-compression digest while trimming the rest of
+        # a list to meet the prompt budget.
+        floor=[m for m in context.get(key,[]) if isinstance(m,dict) and m.get('compressed') is True] if isinstance(context.get(key),list) else []
         if key=='messages' and isinstance(context.get(key),list):
-            floor=[m for m in context[key] if isinstance(m,dict) and type(m.get('day')) is int and m['day']>=context.get('day',0)-1]
-            if not floor:floor=context[key][-min(4,len(context[key])):]
+            floor.extend(m for m in context[key] if isinstance(m,dict) and type(m.get('day')) is int and m['day']>=context.get('day',0)-1)
+            if not floor:floor.extend(context[key][-min(4,len(context[key])):])
         while used()>budget and isinstance(context.get(key),list) and len(context[key])>len(floor):
             old=len(context[key]);count=max(len(floor),old//2)
             tail=context[key][-count:] if count else []

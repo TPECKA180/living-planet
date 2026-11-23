@@ -225,6 +225,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
 
     def fit_context(self,system,context,window,output=None,input_budget=None,adaptive=False):
         output=output if output is not None else self.answer_budget(system,window)
+        if system==RULES and self.config.get('compact_prompt',False):system=COMPACT_RULES
         if system==RULES and estimate(system)>max(256,window-output-2048):
             system=COMPACT_RULES if estimate(COMPACT_RULES)<=max(256,window-output-2048) else TINY_RULES
         from .context import ContextCapacityError
@@ -284,7 +285,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
             # made short decisions stream for many minutes and looked like a hang.
             output=max(256,int(self.config.get('max_tokens',196608)))
             if retry_output_limit is not None:output=min(output,retry_output_limit)
-            actual_system=system
+            actual_system=COMPACT_RULES if system==RULES and self.config.get('compact_prompt',False) else system
             desired_input=max(1024,int(self.config.get('input_tokens',56000)))
             # Retain the existing input budget and the actual server window.
             # Packing the entire output ceiling here caused reserve-halving

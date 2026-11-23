@@ -451,6 +451,14 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
         limit=int(config.get('context_map_cells',4096))
         chosen=sorted(visible, key=lambda p: (self.cell(p).building is None, p not in unit_positions, p))[:limit]
         forecast=self.economic_forecast(s)
+        saved_thinking={(item.get('day'),item.get('state')):item.get('decision',{}).get('thinking')
+                        for item in self.decisions if item.get('state')==s.id and isinstance(item.get('decision'),dict)}
+        memory=[]
+        for item in s.memory[-int(config.get('context_memories',40)):]:
+            entry=dict(copy.deepcopy(item),owner=s.id)
+            thought=saved_thinking.get((item.get('day'),s.id))
+            if isinstance(thought,str) and thought.strip():entry['thinking']=thought
+            memory.append(entry)
         context=dict(day=self.day,identity=dict(id=s.id,name=s.name),round_rule='Общий день: все решения собираются до исполнения. Сообщения и изменения видны со следующего дня.',
                     objective='Стать сильнейшим государством: превосходство в территории, населении, экономике и армии. Дипломатия, экономическое давление и выгодные войны — инструменты развития.',
                     technology_catalog=self.research_catalog(s),strategy=self.strategic_context(s),strategic_brief=self.decision_brief(s,forecast),construction=self.construction_context(s,forecast),politics=self.political_context(s),previous_assessment=copy.deepcopy(s.strategic_assessment),previous_outcome=copy.deepcopy(s.decision_outcome),previous_construction_review=copy.deepcopy(s.construction_review),previous_economic_review=copy.deepcopy(s.economic_review),matter_uses='Продвинутые исследования; reinforce после military_medicine; convert после alchemy; fortify после fortification; improve_building после aether_forging.',
@@ -469,7 +477,7 @@ class World(Commerce,Modern,Mobility,Economy,Diplomacy,Technology,Strategy,Polit
                     buildings=[dict(cell=p,type=self.cell(p).building,level=self.cell(p).building_level,population=self.cell(p).population) for p in own if self.cell(p).building],
                     action_sites=self.legal_action_sites(s),commerce=self.commerce_context(s),era=self.era_for(s),modern=self.modern_context(s),states=[dict(id=other.id,name=other.name,era=self.era_for(other),eliminated=other.eliminated) for other in self.states],
                     tech=list(s.tech),neighbors=self.neighbors(s.id),allies=list(s.allies),
-                    memory=[dict(copy.deepcopy(m),owner=s.id) for m in s.memory[-int(config.get('context_memories',40)):]],
+                    memory=memory,
                     messages=copy.deepcopy([m for m in self.messages if m['sender']==s.id or m['recipient'] in (s.id,'all')][-int(config.get('context_messages',200)):]),
                     trade_offers=[self.visible_trade_offer(s,o) for o in self.trade_offers if s.id in (o['seller'],o['partner']) and o['status']=='open'],
                     history=[dict(copy.deepcopy(h),owner=s.id) for h in s.history[-int(config.get('context_history',200)):]],events=copy.deepcopy([e for e in self.events if e['kind'] not in ('diplomacy','action') and ('visible_to' not in e or s.id in e['visible_to'])][-int(config.get('context_events',150)):]))

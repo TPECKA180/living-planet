@@ -56,7 +56,8 @@ class LocalModelRuntime:
         env.update(TEMP=str(temp), TMP=str(temp), TMPDIR=str(temp))
         command = [str(server), '--model', str(model), '--host', '127.0.0.1',
                    '--port', str(port), '--ctx-size', str(context),
-                   '--n-gpu-layers', str(gpu_layers), '--parallel', '1']
+                   '--n-gpu-layers', str(gpu_layers), '--parallel', '1',
+                   '--reasoning-budget', str(max(-1, int(config.get('reasoning_budget', 1024))))]
         flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
         try:
             self.process = subprocess.Popen(command, cwd=self.root, env=env,

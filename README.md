@@ -10,11 +10,11 @@ Original Living Planet («Живая планета») was created by TPECKA180;
 
 ![Проверки](https://github.com/TPECKA180/living-planet/actions/workflows/tests.yml/badge.svg)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![Версия 8.5.2](https://img.shields.io/badge/версия-8.5.2-5CCFB2)
+![Версия 8.5.3](https://img.shields.io/badge/версия-8.5.3-5CCFB2)
 
-[Скачать 8.5.2](https://github.com/TPECKA180/living-planet/releases/tag/v8.5.2) · [SETUPGAME.exe](https://github.com/TPECKA180/living-planet/releases/download/v8.5.2/SETUPGAME.exe) · [Как установить](docs/SETUP.md) · [Галерея: 11 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Сторонние компоненты](docs/THIRD_PARTY_NOTICES.md)
+[Скачать 8.5.3](https://github.com/TPECKA180/living-planet/releases/tag/v8.5.3) · [SETUPGAME.exe](https://github.com/TPECKA180/living-planet/releases/download/v8.5.3/SETUPGAME.exe) · [Как установить](docs/SETUP.md) · [Галерея: 11 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Сторонние компоненты](docs/THIRD_PARTY_NOTICES.md)
 
-> **Living Planet 8.5.2:** при отказе по размеру контекста запрос пересобирается с меньшим окном; число попыток ограничено, незавершённые решения не применяются. Обязательные данные старого сохранения могут превысить целевой бюджет входа, если помещаются в реальное окно модели. Reasoning показывается, если выбранная модель передаёт его серверу.
+> **Living Planet 8.5.3:** письма, мысли, память и события старше 10 игровых дней сворачиваются только в запросе к модели. Недавние записи передаются полностью, а сохранения и полная летопись не переписываются. Для старых миров действуют компактные правила и меньший предел карты, чтобы модель получала меньше лишних данных.
 
 > Встроенный движок llama.cpp запускает выбранную GGUF-модель из `models`; LM Studio для игры не требуется. Фирменная иконка, установщик с выбором папки и переносимая сборка входят в релиз.
 
