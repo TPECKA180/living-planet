@@ -37,7 +37,7 @@ jobs:
         run: |
           $env:SDL_VIDEODRIVER = 'dummy'
           $env:SDL_AUDIODRIVER = 'dummy'
-          $frame = Join-Path $env:RUNNER_TEMP 'living-planet-v850-smoke.png'
+          $frame = Join-Path $env:RUNNER_TEMP 'living-planet-v852-smoke.png'
           $app = Start-Process -FilePath '.\dist\LivingPlanet\LivingPlanet.exe' -ArgumentList ('--screenshot "' + $frame + '"') -WorkingDirectory "$PWD\dist\LivingPlanet" -WindowStyle Hidden -Wait -PassThru
           if ($app.ExitCode -ne 0) { throw "The packaged game exited with code $($app.ExitCode)." }
           if (-not (Test-Path $frame)) { throw 'The packaged game did not render its startup screen.' }
@@ -50,7 +50,7 @@ jobs:
       - name: Smoke-check installer and desktop shortcut
         shell: powershell
         run: |
-          $installRoot = Join-Path $env:RUNNER_TEMP 'Living Planet 8.5.1 install check'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'Living Planet 8.5.2 install check'
           $installer = (Resolve-Path '.\dist\installer\SETUPGAME.exe').Path
           $arguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=desktopicon /DIR="' + $installRoot + '"'
           $installed = Start-Process -FilePath $installer -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
@@ -72,16 +72,18 @@ jobs:
         run: |
           $weights = @(Get-ChildItem -Path '.\models', '.\dist\LivingPlanet' -Filter '*.gguf' -File -Recurse -ErrorAction SilentlyContinue)
           if ($weights.Count -gt 0) { throw 'GGUF model weights must not be present in a public release build.' }
-          python -c "import zipfile; z=zipfile.ZipFile('dist/LivingPlanet-8.5.1-Portable.zip'); assert not [n for n in z.namelist() if n.lower().endswith('.gguf')]; assert 'LivingPlanet/SETUPGAME.exe' in z.namelist(); assert 'LivingPlanet/docs/index.html' in z.namelist()"
+          python -c "import zipfile; z=zipfile.ZipFile('dist/LivingPlanet-8.5.2-Portable.zip'); assert not [n for n in z.namelist() if n.lower().endswith('.gguf')]; assert 'LivingPlanet/SETUPGAME.exe' in z.namelist(); assert 'LivingPlanet/docs/index.html' in z.namelist()"
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: Living Planet 8.5.1 · возвращение потока модели
+          name: Living Planet 8.5.2 · адаптивное окно и проверка модели
           body_path: RELEASE_NOTES.md
           overwrite_files: true
           files: |
             dist/installer/SETUPGAME.exe
-            dist/LivingPlanet-8.5.1-Portable.zip
+            dist/LivingPlanet-8.5.2-Portable.zip
           generate_release_notes: false
+
+
 
 
