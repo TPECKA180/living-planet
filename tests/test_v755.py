@@ -18,6 +18,15 @@ class OutputCeilingTests(unittest.TestCase):
         packed=fit('rules',source,100000,0,allow_estimated_overflow=True)
         self.assertEqual(packed['military'],source['military']);self.assertGreater(packed['context_info']['estimated_overflow_tokens'],0)
 
+    def test_mandatory_prompt_may_exceed_target_inside_actual_window(self):
+        brain=Brain(dict(input_tokens=72000,context_window=262144,max_tokens=56000))
+        packed=dict(context_info=dict(estimated_input_tokens=95917,trimmed={}))
+        with patch('planet.brain.fit',side_effect=[ContextCapacityError('target exceeded',95917,95106),packed]) as pack:
+            result=brain.fit_context('rules',{'decision':'mandatory'},262144,0,input_budget=72000)
+        self.assertEqual(result['context_info']['input_budget_spill_tokens'],811)
+        self.assertTrue(result['context_info']['expanded_for_actionable_data'])
+        self.assertTrue(pack.call_args.kwargs['allow_estimated_overflow'])
+
     def test_real_server_rejection_of_estimated_overflow_regenerates_smaller_window(self):
         brain=Brain(dict(model='m',stream=True,context_window=110755,max_tokens=196608,context_retry_attempts=3))
         packed=dict(context_info=dict(estimated_input_tokens=111000,trimmed={},estimated_overflow_tokens=1000))

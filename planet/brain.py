@@ -232,6 +232,21 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
         budget=int(self.config.get('input_tokens',56000)) if input_budget is None else max(1024,int(input_budget))
         try:return fit(system,context,window,output,bytes_per_token=ratio,input_budget=budget,compact_small_window=adaptive)
         except ContextCapacityError as exc:
+            # input_tokens is a target for packing, not the model's hard limit.
+            # Retain a bounded spill for saves whose mandatory current facts and
+            # structured decision contract exceed that target, provided the
+            # request still fits the actual window. complete() caps output to
+            # the remaining capacity before sending the request.
+            if (output==0 and isinstance(exc.estimated,int) and isinstance(exc.budget,int)
+                    and exc.estimated<=window-2048):
+                overflow=exc.estimated-exc.budget
+                spill_limit=max(4096,min(24000,int(exc.budget*.25)))
+                if 0<overflow<=spill_limit:
+                    result=fit(system,context,window,output,bytes_per_token=ratio,input_budget=budget,allow_estimated_overflow=True)
+                    result['context_info']['requested_user_input_tokens']=budget
+                    result['context_info']['expanded_for_actionable_data']=True
+                    result['context_info']['input_budget_spill_tokens']=overflow
+                    return result
             # Preserve the historical small-window path for compact models,
             # where actionable facts may need a little more room. Never use
             # that escape hatch on large windows: legacy saves could otherwise
