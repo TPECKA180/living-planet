@@ -9,7 +9,7 @@ from planet.intelligence import CONTRACTS,action_schema
 
 class CapacityTests(unittest.TestCase):
     def test_defaults_and_one_time_upgrade_restore_requested_limits(self):
-        self.assertEqual(DEFAULTS['input_tokens'],12000);self.assertEqual(DEFAULTS['max_tokens'],196608);self.assertEqual(DEFAULTS['context_window'],262144)
+        self.assertEqual(DEFAULTS['input_tokens'],24000);self.assertEqual(DEFAULTS['max_tokens'],196608);self.assertEqual(DEFAULTS['context_window'],262144)
         cfg=dict(runtime_patch='7.5.0',max_tokens=28000,input_tokens=56000,context_window=196608)
         self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['max_tokens'],196608);self.assertEqual(cfg['context_window'],262144);self.assertEqual(cfg['input_tokens'],12000)
         cfg['max_tokens']=200000;cfg['input_tokens']=90000;self.assertFalse(upgrade_config(cfg));self.assertEqual(cfg['input_tokens'],90000)
@@ -23,7 +23,7 @@ class CapacityTests(unittest.TestCase):
         cfg=dict(model='m',stream=False,context_window=262144,max_tokens=131072,input_tokens=56000);before=copy.deepcopy(cfg);events=[];brain=Brain(cfg,observer=lambda kind,text='',**data:events.append((kind,data)))
         result=dict(choices=[dict(message=dict(content='{"ok":true}'),finish_reason='stop')])
         with patch.object(brain,'prepare_model',return_value=('m',110848)),patch.object(brain,'request',return_value=result):brain.complete(RULES,dict(stocks={}),'m')
-        row=next(data for kind,data in events if kind=='request_start');self.assertEqual(row['requested_output'],131072);self.assertEqual(row['actual_output'],131072);self.assertEqual(row['window'],110848);self.assertEqual(cfg,before)
+        row=next(data for kind,data in events if kind=='request_start');self.assertEqual(row['window'],110848);self.assertEqual(row['requested_output'],min(131072,110848-row['estimated_input']-1024));self.assertEqual(row['actual_output'],row['requested_output']);self.assertEqual(cfg,before)
     def test_length_at_requested_ceiling_recovers_once(self):
         brain=Brain(dict(model='m',stream=False,context_window=262144,max_tokens=131072,input_tokens=56000));calls=[]
         def send(path,payload):
