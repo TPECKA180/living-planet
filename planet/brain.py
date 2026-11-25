@@ -99,7 +99,7 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                     for field,kind in (('reasoning_content','reasoning'),('reasoning','reasoning'),('content','content')):
                         if isinstance(message.get(field),str): self.emit(kind,message[field])
                     return result
-                fragments=[]; finish=None; usage={}; ended=False; pending=[]; recent=''; repetition_check=0; generation_started=None
+                fragments=[]; finish=None; usage={}; timings={}; ended=False; pending=[]; recent=''; repetition_check=0; generation_started=None; request_started=time.monotonic(); first_token_at=None
                 from .generation_recovery import ReasoningWatch
                 reasoning_watch=ReasoningWatch()
                 for line in stream_lines(response,limit):
@@ -111,17 +111,18 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                         chunk=json.loads(data)
                         if chunk.get('error'): raise RuntimeError(json.dumps(chunk['error'],ensure_ascii=False))
                         if chunk.get('usage'): usage=chunk['usage']
+                        if isinstance(chunk.get('timings'),dict): timings=chunk['timings']
                         for choice in chunk.get('choices',[]):
                             delta=choice.get('delta',{})
                             reasoning=delta.get('reasoning_content') or delta.get('reasoning')
                             if isinstance(reasoning,str):
-                                if reasoning and generation_started is None:generation_started=time.monotonic()
+                                if reasoning and generation_started is None:generation_started=time.monotonic();first_token_at=generation_started
                                 broadcast('reasoning',reasoning)
                                 if self.config.get('detect_repetition',True) and reasoning_watch.feed(reasoning):
                                     raise RepeatedOutput('Повторяющийся текст в reasoning сервера')
                             content=delta.get('content')
                             if isinstance(content,str):
-                                if content and generation_started is None:generation_started=time.monotonic()
+                                if content and generation_started is None:generation_started=time.monotonic();first_token_at=generation_started
                                 fragments.append(content); broadcast('content',content)
                                 recent=(recent+content)[-2000:]; repetition_check+=len(content)
                                 if repetition_check>=256 and self.config.get('detect_repetition',True):
@@ -134,6 +135,8 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 if not ended: raise RuntimeError('Поток модели оборвался до завершения ответа; ход не применён')
                 result=dict(choices=[dict(message=dict(content=''.join(fragments)),finish_reason=finish or 'stop')],usage=usage)
                 if generation_started is not None:result['generation_seconds']=max(.001,time.monotonic()-generation_started)
+                if first_token_at is not None:result['prompt_seconds']=max(.001,first_token_at-request_started)
+                if timings:result['timings']=timings
                 return result
         except (ValueError,KeyError,TypeError,IndexError,AttributeError) as exc:
             raise RuntimeError(f'Некорректный поток модели; неполное решение не применено: {exc}') from exc
@@ -369,8 +372,16 @@ class Brain(StrictIsolation,ConstructionAI,EconomicAI,ExecutionAI):
                 predicted_ms=timing.get('predicted_ms') if isinstance(timing,dict) else None
                 elapsed=max(.001,predicted_ms/1000 if isinstance(predicted_ms,(int,float)) and predicted_ms>0 else time.monotonic()-request_started)
             speed=(generated/elapsed) if type(generated) is int and generated>0 else 0.0
-            self.emit('request_end','Ответ получен. '+json.dumps(usage,ensure_ascii=False),tokens_per_second=speed)
             prompt_tokens=usage.get('prompt_tokens')
+            prompt_seconds=response.get('prompt_seconds')
+            timing=response.get('timings') or {}
+            if not isinstance(prompt_seconds,(int,float)) or prompt_seconds<=0:
+                prompt_ms=timing.get('prompt_ms') if isinstance(timing,dict) else None
+                prompt_seconds=prompt_ms/1000 if isinstance(prompt_ms,(int,float)) and prompt_ms>0 else None
+            prompt_speed=(prompt_tokens/prompt_seconds if type(prompt_tokens) is int and prompt_tokens>0 and prompt_seconds else 0.0)
+            if not prompt_speed and isinstance(timing,dict):
+                prompt_speed=timing.get('prompt_per_second') or timing.get('prompt_tokens_per_second') or 0.0
+            self.emit('request_end','Ответ получен. '+json.dumps(usage,ensure_ascii=False),tokens_per_second=speed,prompt_tokens_per_second=prompt_speed)
             if self.config.get('calibrate_context',False) and type(prompt_tokens) is int and prompt_tokens>0:
                 byte_count=sum(len(m['content'].encode('utf-8')) for m in payload['messages'])
                 ratio=max(2,min(3.5,byte_count/(prompt_tokens*1.45)))

@@ -10,11 +10,13 @@ Original Living Planet («Живая планета») was created by TPECKA180;
 
 ![Проверки](https://github.com/TPECKA180/living-planet/actions/workflows/tests.yml/badge.svg)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![Версия 8.5.3](https://img.shields.io/badge/версия-8.5.3-5CCFB2)
+![Версия 8.5.4](https://img.shields.io/badge/версия-8.5.4-5CCFB2)
 
-[Скачать 8.5.3](https://github.com/TPECKA180/living-planet/releases/tag/v8.5.3) · [SETUPGAME.exe](https://github.com/TPECKA180/living-planet/releases/download/v8.5.3/SETUPGAME.exe) · [Как установить](docs/SETUP.md) · [Галерея: 11 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Сторонние компоненты](docs/THIRD_PARTY_NOTICES.md)
+[Скачать 8.5.4](https://github.com/TPECKA180/living-planet/releases/tag/v8.5.4) · [SETUPGAME.exe](https://github.com/TPECKA180/living-planet/releases/download/v8.5.4/SETUPGAME.exe) · [Как установить](docs/SETUP.md) · [Галерея: 12 экранов](docs/SCREENSHOTS.md) · [Полная справка](docs/GAME_GUIDE.md) · [Все действия](docs/ACTIONS.md) · [Сторонние компоненты](docs/THIRD_PARTY_NOTICES.md)
 
-> **Living Planet 8.5.3:** письма, мысли, память и события старше 10 игровых дней сворачиваются только в запросе к модели. Недавние записи передаются полностью, а сохранения и полная летопись не переписываются. Для старых миров действуют компактные правила и меньший предел карты, чтобы модель получала меньше лишних данных.
+> **Living Planet 8.5.4:** поток модели теперь виден прямо в игровом окне: размышления и ответ появляются по мере поступления фрагментов. В нижней строке отдельно показываются скорость чтения входного контекста и скорость генерации ответа.
+
+> Сжатие старых писем, мыслей и событий из 8.5.3 сохранено: подробное сохранение мира не меняется, временные сводки собираются только для запроса. Обновление 8.5.3 включает потоковую генерацию и сохраняет вашу модель, контекст и сейвы.
 
 > Встроенный движок llama.cpp запускает выбранную GGUF-модель из `models`; LM Studio для игры не требуется. Фирменная иконка, установщик с выбором папки и переносимая сборка входят в релиз.
 
@@ -23,6 +25,8 @@ Original Living Planet («Живая планета») was created by TPECKA180;
 <p align="center"><img src="docs/assets/living-planet-logo.png" alt="Пиксельная эмблема Living Planet с сияющей планетой и названием игры" width="520"></p>
 
 ![Общий интерфейс Живой планеты: карта, государства, запасы, объяснение решения и хроника](docs/assets/interface.png)
+
+![Пример интерфейса Living Planet 8.5.4: поток размышлений государства и отдельные скорости чтения и генерации токенов](docs/assets/streaming.png)
 
 *Реальный интерфейс pygame. На скриншотах — специально подготовленные демонстрационные миры, без личных сохранений и запросов к нейросети. Увеличенные запасы и открытые технологии служат показу возможностей, а не примером стартового баланса.*
 

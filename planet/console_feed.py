@@ -37,7 +37,10 @@ class ConsoleFeed:
                     except OSError: self.process=None
                 if self.stream is None or self.stream.closed:
                     self.path.parent.mkdir(parents=True,exist_ok=True)
-                    self.stream=self.path.open('a',encoding='utf-8',buffering=65536)
+                    # Line buffering makes every batched token fragment visible
+                    # immediately to the monitor window instead of waiting for
+                    # a large file buffer to fill.
+                    self.stream=self.path.open('a',encoding='utf-8',buffering=1)
                 self.stream.write(json.dumps(dict(time=time.time(),kind=kind,text=text,**data),ensure_ascii=False)+'\n')
                 now=time.monotonic()
                 if kind not in ('reasoning','content') or now-self.last_flush>=.08:

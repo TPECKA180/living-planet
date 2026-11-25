@@ -4,7 +4,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'dist' / 'LivingPlanet'
-ARCHIVE = ROOT / 'dist' / 'LivingPlanet-8.5.3-Portable.zip'
+ARCHIVE = ROOT / 'dist' / 'LivingPlanet-8.5.4-Portable.zip'
 
 
 def main():

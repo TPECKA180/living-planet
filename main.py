@@ -39,7 +39,9 @@ class Runner:
     def observe(self,kind,text='',**data):
         self.console.emit(kind,text,**data)
         if kind=='status': self.messages.put(('status',text))
-        elif kind=='request_end': self.messages.put(('speed',data.get('tokens_per_second',0)))
+        elif kind=='request_start': self.messages.put(('stream_start',(text,data)))
+        elif kind in ('reasoning','content'): self.messages.put(('stream_delta',(kind,text)))
+        elif kind=='request_end': self.messages.put(('speed',(data.get('tokens_per_second',0),data.get('prompt_tokens_per_second',0))))
 
     def tick(self):
         if self.busy: return
@@ -165,7 +167,7 @@ def settings(config):
 class App:
     def __init__(self,world,store,config,local_runtime=None,startup_status=''):
         import pygame as pg
-        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.5.3 · мир без границ')
+        self.pg=pg; pg.init(); pg.display.set_caption('Живая планета · v8.5.4 · мир без границ')
         self.screen=pg.display.set_mode((1440,900),pg.RESIZABLE)
         icon_path=(ROOT/'assets/living-planet-logo.png') if getattr(sys,'frozen',False) else (ROOT/'docs/assets/living-planet-logo.png')
         try: pg.display.set_icon(pg.image.load(str(icon_path)))
@@ -173,7 +175,8 @@ class App:
         self.font=pg.font.SysFont('segoeui',17); self.small=pg.font.SysFont('segoeui',14)
         self.title=pg.font.SysFont('segoeui',30,bold=True); self.medium=pg.font.SysFont('segoeui',21,bold=True)
         self.world=World.restore(world.data()); self.runner=Runner(world,store,config); self.config=config
-        self.local_runtime=local_runtime; self.tokens_per_second=0.0
+        self.local_runtime=local_runtime; self.tokens_per_second=0.0; self.prompt_tokens_per_second=0.0
+        self.live_stream_active=False; self.live_stream_visible=False; self.live_stream_kind=''; self.live_stream_text=''; self.live_stream_state=''; self.live_prompt_estimate=0; self.content_rect=None
         self.model_loading=bool(local_runtime and startup_status.startswith('Загружается'))
         self.runtime_poll_at=0.0
         self.selected=0; self.tab=0; self.scroll=0; self.running=False; self.target_day=None
@@ -320,8 +323,18 @@ class App:
             cwd=ROOT,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         self.status='Открыто отдельное окно отношений: '+self.world.states[self.selected].name
 
+    def update_runtime_metrics(self):
+        metrics=getattr(self.local_runtime,'metrics',None) if self.local_runtime else None
+        if metrics is None:return
+        while True:
+            try:kind,value=metrics.get_nowait()
+            except queue.Empty:break
+            if kind=='read':self.prompt_tokens_per_second=max(0.0,float(value or 0))
+            elif kind=='generate':self.tokens_per_second=max(0.0,float(value or 0))
+
     def draw(self):
         pg=self.pg; width,height=self.screen.get_size(); self.buttons=[]; self.screen.fill(BG)
+        self.update_runtime_metrics()
         if self.model_loading and time.monotonic()>=self.runtime_poll_at:
             self.runtime_poll_at=time.monotonic()+1
             if self.local_runtime.ready():
@@ -329,7 +342,7 @@ class App:
             elif self.local_runtime.process and self.local_runtime.process.poll() is not None:
                 self.model_loading=False;self.status='Не удалось загрузить модель. Подробности в logs/local-model.log.'
         self.text('ЖИВАЯ ПЛАНЕТА',28,21,font=self.title)
-        self.text('8.5.3  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ВСТРОЕННЫЕ МОДЕЛИ',30,62,MUTED,self.small)
+        self.text('8.5.4  /  АВТОНОМНЫЕ ГОСУДАРСТВА · ЖИВОЙ ПОТОК МОДЕЛИ',30,62,MUTED,self.small)
         self.text(f'ДЕНЬ {self.world.day:04d}',width-195,24,ACCENT,self.medium)
         phase={'idle':'Общий ход завершён','planning':f'Решения {self.world.cursor}/{len(self.world.states)}','resolution':'Общее исполнение','preparing':'Подготовка приказов','manager':'Итоги дня'}[self.world.phase]
         if self.activity=='diplomacy': phase='Стратегия и отношения'
@@ -410,7 +423,7 @@ class App:
             self.resource_rects.append((pg.Rect(x,y,128,62),key))
         for i,label in enumerate(('Решение','Память','Приказы','Диплом.','Юниты','Отнош.','Техно','Стратег.','Разбор','Стройка')):
             self.button(label,(sx+18+(i%5)*79,sy+314+(i//5)*38,75,32),'relations' if i==5 else f'tab:{i}',self.tab==i)
-        content=pg.Rect(sx+20,sy+400,side-40,height-sy-430)
+        content=pg.Rect(sx+20,sy+400,side-40,height-sy-430); self.content_rect=content
         self.screen.set_clip(content)
         y=content.y-self.scroll
         opponents=[other.name for other in self.world.states if other.id!=s.id and self.world.conflict_status(s.id,other.id)=='ВОЙНА']
@@ -543,6 +556,16 @@ class App:
                 y+=121
             if not units: y=self.wrapped('Юнитов пока нет.',content.x,y,content.width,color=MUTED)
         self.max_scroll=max(0,y+self.scroll-content.bottom+10)
+        if self.live_stream_visible:
+            self.screen.set_clip(content)
+            self.box(content,(17,27,35),7)
+            self.text('ПОТОК МОДЕЛИ · '+('ЧТЕНИЕ КОНТЕКСТА' if self.live_stream_active and not self.live_stream_text else 'РАЗМЫШЛЕНИЕ' if self.live_stream_kind=='reasoning' else 'ОТВЕТ МОДЕЛИ'),content.x+10,content.y+9,ACCENT,self.small)
+            if self.live_stream_text:
+                live=self.live_stream_text[-900:]
+                self.wrapped(live,content.x+10,content.y+31,content.width-20,self.small,TEXT)
+            else:
+                self.wrapped(self.live_stream_state or 'Модель читает входной контекст и готовит первый фрагмент ответа.',content.x+10,content.y+34,content.width-20,self.small,MUTED)
+            self.screen.set_clip(None)
         self.screen.set_clip(None)
         cy=legend_y+60
         self.box((28,cy,map_width,height-cy-22))
@@ -597,8 +620,9 @@ class App:
             self.screen.set_clip(None)
         previous=self.screen.get_clip();self.screen.set_clip(None)
         self.box((28,height-29,max(100,width-56),23),(16,24,31),4)
-        self.text(self.status[:max(25,(width-230)//7)],36,height-27,(239,174,91) if self.error else MUTED,self.small)
-        self.text(f'{self.tokens_per_second:.1f} ток/с',width-186,height-28,ACCENT if self.tokens_per_second else MUTED,self.small)
+        self.text(self.status[:max(25,(width-340)//7)],36,height-27,(239,174,91) if self.error else MUTED,self.small)
+        self.text(f'Чтение {self.prompt_tokens_per_second:.1f} ток/с',width-300,height-28,ACCENT if self.prompt_tokens_per_second else MUTED,self.small)
+        self.text(f'Выход {self.tokens_per_second:.1f} ток/с',width-148,height-28,ACCENT if self.tokens_per_second else MUTED,self.small)
         self.screen.set_clip(previous)
         for rect,key in self.resource_rects:
             if rect.collidepoint(pg.mouse.get_pos()):
@@ -628,7 +652,7 @@ class App:
             if self.runner.busy: self.status='Пауза вступит в силу после ответа модели.'; self.running=False; return
             self.running=False; old_size=self.screen.get_size(); changed=settings(self.config)
             self.screen=self.pg.display.set_mode(old_size,self.pg.RESIZABLE)
-            self.pg.display.set_caption('Живая планета · v8.5.3 · мир без границ')
+            self.pg.display.set_caption('Живая планета · v8.5.4 · мир без границ')
             if changed:
                 settings_status='Настройки сохранены. Можно продолжить.'
                 if self.local_runtime:
@@ -718,13 +742,28 @@ class App:
                 kind,value=self.runner.messages.get()
                 if kind=='world':
                     self.world=World.restore(value); self.map_dirty=True; self.forecasts={}; self.view_positions={}; self.strategy_cache={}; self.construction_cache={}; self.preview_key=None; self.activity=None
+                    if not self.live_stream_active:
+                        self.live_stream_visible=False; self.live_stream_text=''; self.live_stream_kind=''
                     self.status=f'Общий день {self.world.day} · '+(f'решений {len(self.world.pending_decisions)}/{len(self.world.states)}' if self.world.phase=='planning' else 'решения собраны' if self.world.phase=='resolution' else 'действия применены' if self.world.in_day else 'завершён')
                     if self.target_day and self.world.day>=self.target_day and not self.world.in_day: self.running=False; self.target_day=None
                 elif kind=='status': self.status=value
                 elif kind=='activity': self.activity=value
-                elif kind=='retry': self.status=value; self.retry_after=time.monotonic()+5; self.error=''
-                elif kind=='speed': self.tokens_per_second=max(0.0,float(value or 0))
-                elif kind=='error': self.error=value; self.status='Ошибка модели / решения'; self.running=False
+                elif kind=='retry': self.status=value; self.retry_after=time.monotonic()+5; self.error=''; self.live_stream_active=False; self.live_stream_visible=False
+                elif kind=='stream_start':
+                    self.live_stream_active=True; self.live_stream_visible=True; self.live_stream_text=''; self.live_stream_kind=''; self.live_stream_state=value[0]; self.live_prompt_estimate=value[1].get('estimated_input',0)
+                elif kind=='stream_delta':
+                    channel,fragment=value
+                    if channel!=self.live_stream_kind:
+                        label='РАЗМЫШЛЕНИЕ' if channel=='reasoning' else 'ОТВЕТ'
+                        self.live_stream_text+=f'\n\n[{label}]\n'; self.live_stream_kind=channel
+                    self.live_stream_text+=fragment
+                    if len(self.live_stream_text)>6000:self.live_stream_text=self.live_stream_text[-5000:]
+                elif kind=='speed':
+                    if isinstance(value,(tuple,list)):
+                        self.tokens_per_second=max(0.0,float(value[0] or 0)); self.prompt_tokens_per_second=max(0.0,float(value[1] or 0))
+                    else:self.tokens_per_second=max(0.0,float(value or 0))
+                    self.live_stream_active=False
+                elif kind=='error': self.error=value; self.status='Ошибка модели / решения'; self.running=False; self.live_stream_active=False; self.live_stream_visible=False
                 elif kind=='done': self.runner.busy=False
             for event in pg.event.get():
                 if event.type==pg.QUIT: opened=False
@@ -742,6 +781,7 @@ class App:
                     elif self.map_rect.collidepoint(pg.mouse.get_pos()): self.zoom=max(1,min(64,self.zoom*(1.2**event.y)))
                     else: self.scroll=max(0,min(getattr(self,'max_scroll',0),self.scroll-event.y*42))
                 elif event.type==pg.MOUSEBUTTONDOWN and event.button==1:
+                    if self.live_stream_active and self.content_rect and self.content_rect.collidepoint(event.pos): continue
                     for rect,action in self.buttons:
                         if rect.collidepoint(event.pos): self.action(action); break
                     else:

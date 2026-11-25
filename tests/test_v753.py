@@ -10,7 +10,7 @@ class RecoveryTests(unittest.TestCase):
     def test_851_upgrade_preserves_model_and_window_but_bounds_prompt_budget(self):
         cfg=dict(runtime_patch='8.5.1',model='gemma-local.gguf',context_window=262144,input_tokens=72000,
                  max_tokens=56000,temperature=.7,saves_directory=r'F:\Living Planet\saves',external_console=True)
-        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['runtime_patch'],'8.5.3')
+        self.assertTrue(upgrade_config(cfg));self.assertEqual(cfg['runtime_patch'],'8.5.4')
         self.assertEqual(cfg['model'],'gemma-local.gguf');self.assertEqual(cfg['context_window'],262144)
         self.assertEqual(cfg['input_tokens'],72000);self.assertEqual(cfg['max_tokens'],56000)
         self.assertTrue(cfg['compact_prompt']);self.assertEqual(cfg['context_map_cells'],2048);self.assertEqual(cfg['reasoning_budget'],1024)
@@ -48,13 +48,13 @@ class RecoveryTests(unittest.TestCase):
     def test_recent_config_migration_changes_only_patch(self):
         for v in ('7.5.1','7.5.2','7.5.3'):
             cfg=dict(runtime_patch=v,input_tokens=56000,max_tokens=196608,context_window=262144,temperature=.7)
-            upgrade_config(cfg);self.assertEqual(cfg['runtime_patch'],'8.5.3');self.assertTrue(cfg['external_console']);self.assertEqual(cfg['input_tokens'],12000);self.assertEqual(cfg['context_window'],262144);self.assertEqual(cfg['max_tokens'],196608)
+            upgrade_config(cfg);self.assertEqual(cfg['runtime_patch'],'8.5.4');self.assertTrue(cfg['external_console']);self.assertEqual(cfg['input_tokens'],12000);self.assertEqual(cfg['context_window'],262144);self.assertEqual(cfg['max_tokens'],196608)
 
     def test_852_upgrade_caps_oversized_context_feed_once(self):
         cfg=dict(runtime_patch='8.5.2',model='local.gguf',context_window=262144,input_tokens=72000,
                  max_tokens=56000,context_map_cells=4096,temperature=.7)
         self.assertTrue(upgrade_config(cfg))
-        self.assertEqual(cfg['runtime_patch'],'8.5.3');self.assertEqual(cfg['input_tokens'],72000)
+        self.assertEqual(cfg['runtime_patch'],'8.5.4');self.assertEqual(cfg['input_tokens'],72000)
         self.assertEqual(cfg['context_map_cells'],2048);self.assertTrue(cfg['compact_prompt']);self.assertEqual(cfg['reasoning_budget'],1024)
         self.assertEqual(cfg['context_window'],262144);self.assertEqual(cfg['max_tokens'],56000)
         self.assertFalse(upgrade_config(cfg))

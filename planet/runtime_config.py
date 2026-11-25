@@ -10,10 +10,15 @@ def _compact_legacy_prompt(config):
 
 def upgrade_config(config):
     version=config.get('runtime_patch')
-    if version=='8.5.3':return False
+    if version=='8.5.4':return False
+    if version=='8.5.3':
+        config['runtime_patch']='8.5.4'
+        config['stream']=True
+        return True
     if version in ('8.5.1','8.5.2'):
-        config['runtime_patch']='8.5.3'
+        config['runtime_patch']='8.5.4'
         config['external_console']=True
+        config['stream']=True
         _compact_legacy_prompt(config)
         return True
     if version=='8.5.0':
@@ -21,17 +26,19 @@ def upgrade_config(config):
             config['context_window']=262144
             config['context_window_profile']='v8.0.0'
         config['external_console']=True
-        config['runtime_patch']='8.5.3'
+        config['runtime_patch']='8.5.4'
         _compact_legacy_prompt(config)
+        config['stream']=True
         return True
     if version in ('7.5.1','7.5.2','7.5.3','7.5.4','7.5.5','7.5.6','7.5.7','8.0.0','8.0.1'):
-        config['runtime_patch']='8.5.3'
+        config['runtime_patch']='8.5.4'
         config['host']='http://127.0.0.1:32124/v1';config['manage_model_context']=False;config['strict_state_isolation']=False
         config['context_window']=262144;config['context_window_profile']='v8.0.0';config['external_console']=True
         config['input_tokens']=min(12000,max(1024,int(config.get('input_tokens',12000))))
         config['max_tokens']=max(110000,int(config.get('max_tokens',196608)))
         config['api_key']=''
         _compact_legacy_prompt(config)
+        config['stream']=True
         return True
     changed=False
     if version not in ('6.8','6.8.2','6.8.3','6.8.4','7.0','7.0.1','7.5.0','7.5.3'):
@@ -46,6 +53,6 @@ def upgrade_config(config):
         config['max_tokens']=max(196608,int(config.get('max_tokens',196608)))
         config['context_window']=262144;config['context_window_profile']='v8.0.0'
         config['host']='http://127.0.0.1:32124/v1';config['manage_model_context']=False;config['strict_state_isolation']=False;config['api_key']=''
-        config['runtime_patch']='8.5.3';config['external_console']=True
-        _compact_legacy_prompt(config);changed=True
+        config['runtime_patch']='8.5.4';config['external_console']=True
+        _compact_legacy_prompt(config);config['stream']=True;changed=True
     return changed

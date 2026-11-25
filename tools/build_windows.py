@@ -7,7 +7,7 @@ import sys
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
-VERSION='8.5.3'
+VERSION='8.5.4'
 DIST=ROOT/'dist'
 BUILD=ROOT/'build'/'pyinstaller'
 APP=DIST/'LivingPlanet'

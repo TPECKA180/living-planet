@@ -33,7 +33,7 @@
   "local_chronicle": true,
   "compact_prompt": true,
   "reasoning_budget": 1024,
-  "runtime_patch": "8.5.3",
+  "runtime_patch": "8.5.4",
   "gpu_layers": 99,
   "local_port": 32124,
   "response_max_bytes": 33554432,
