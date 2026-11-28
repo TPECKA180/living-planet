@@ -1,0 +1,40 @@
+name: Sync Living Planet to GitFlic
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitflic-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Synchronize repository
+        env:
+          GITFLIC_TOKEN: ${{ secrets.GITFLIC_TOKEN }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          git clone --bare https://github.com/TPECKA180/living-planet.git repo.git
+          cd repo.git
+
+          cat > "$RUNNER_TEMP/git-askpass" <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *Username*) echo "tpecka180" ;;
+            *Password*) printf '%s\n' "$GITFLIC_TOKEN" ;;
+          esac
+          EOF
+
+          chmod 700 "$RUNNER_TEMP/git-askpass"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass"
+
+          git remote add gitflic https://gitflic.ru/project/tpecka180/living-planet.git
+          git push gitflic --all
+          git push gitflic --tags
